@@ -1,0 +1,14 @@
+---
+import type { Product } from '../../types';
+import ProductCard from './ProductCard.astro';
+
+interface Props { products: Product[] }
+const { products } = Astro.props;
+---
+<div class="grid">
+  {products.map((product) => <ProductCard product={product} />)}
+</div>
+
+<style>
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+</style>

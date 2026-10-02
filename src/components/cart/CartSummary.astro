@@ -1,0 +1,10 @@
+---
+import { formatPrice } from '../../lib/format';
+
+interface Props { total: number }
+const { total } = Astro.props;
+---
+<aside>
+  <p>Total : <strong>{formatPrice(total)}</strong></p>
+  <a href="/commande">Passer commande</a>
+</aside>

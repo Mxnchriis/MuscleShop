@@ -1,0 +1,7 @@
+---
+import type { CartItem } from '../../types';
+
+interface Props { item: CartItem }
+const { item } = Astro.props;
+---
+<li>Produit #{item.productId} × {item.quantity}</li>

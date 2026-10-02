@@ -1,0 +1,17 @@
+---
+interface Props { productId: number }
+const { productId } = Astro.props;
+---
+<button class="add-to-cart" data-product-id={productId}>Ajouter au panier</button>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('.add-to-cart').forEach((button) => {
+    button.addEventListener('click', async () => {
+      await fetch('/api/cart/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: Number(button.dataset.productId), quantity: 1 }),
+      });
+    });
+  });
+</script>

@@ -1,0 +1,10 @@
+---
+import ShopLayout from '../../layouts/ShopLayout.astro';
+import AddToCartButton from '../../components/islands/AddToCartButton.astro';
+
+const slug = Astro.params.slug!;
+---
+<ShopLayout title={slug}>
+  <h1>{slug}</h1>
+  <AddToCartButton productId={0} />
+</ShopLayout>

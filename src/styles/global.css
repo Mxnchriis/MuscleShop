@@ -1,0 +1,23 @@
+:root {
+  --color-primary: #e63946;
+  --color-text: #1d1d1f;
+  --color-bg: #ffffff;
+  --color-muted: #6b7280;
+  --radius: 8px;
+  --font: system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}

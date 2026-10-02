@@ -1,0 +1,13 @@
+---
+import type { Product } from '../../types';
+import { formatPrice } from '../../lib/format';
+
+interface Props { product: Product }
+const { product } = Astro.props;
+---
+<article>
+  <a href={`/produits/${product.slug}`}>
+    <h3>{product.name}</h3>
+  </a>
+  <p>{formatPrice(product.price)}</p>
+</article>

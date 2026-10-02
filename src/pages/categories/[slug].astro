@@ -1,0 +1,8 @@
+---
+import ShopLayout from '../../layouts/ShopLayout.astro';
+
+const slug = Astro.params.slug!;
+---
+<ShopLayout title={slug}>
+  <h1>Catégorie : {slug}</h1>
+</ShopLayout>
