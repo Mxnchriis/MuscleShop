@@ -10,6 +10,7 @@ export interface Product {
   name: string;
   description: string;
   price: number; // en centimes
+  originalPrice: number | null; // prix barré en centimes, null si pas de promo
   stock: number;
   image: string | null;
   categoryId: number;

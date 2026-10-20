@@ -1,0 +1,80 @@
+---
+// Catégories en cartes sur 2 rangées décalées d'une demi-carte (appareil en briques).
+// Chaque carte occupe 2 demi-colonnes : la rangée du bas commence une demi-colonne plus loin.
+interface Props {
+  categories: { id: number; slug: string; name: string; productCount: number }[];
+}
+const { categories } = Astro.props;
+
+const icons: Record<string, string> = {
+  proteines: '💪',
+  creatine: '⚡',
+  vitamines: '💊',
+  'barres-snacks': '🍫',
+  'pre-workout': '🔥',
+  'acides-amines': '🧬',
+  accessoires: '🥤',
+};
+
+const topCount = Math.ceil(categories.length / 2);
+// Rangées de même longueur : une demi-colonne de plus pour le décalage de la rangée du bas
+const halfColumns = topCount * 2 + (categories.length % 2 === 0 ? 1 : 0);
+
+const placed = categories.map((category, index) => {
+  const top = index < topCount;
+  const position = top ? index : index - topCount;
+  return { ...category, row: top ? 1 : 2, column: position * 2 + (top ? 1 : 2) };
+});
+---
+<div class="categories" style={`--half-columns: ${halfColumns}`}>
+  {placed.map((category) => (
+    <a
+      class="category"
+      href={`/categories/${category.slug}`}
+      style={`--row: ${category.row}; --column: ${category.column}`}
+    >
+      <span class="icon" aria-hidden="true">{icons[category.slug] ?? '🏋️'}</span>
+      <span class="name">{category.name}</span>
+      <span class="count">{category.productCount} produit{category.productCount > 1 ? 's' : ''}</span>
+    </a>
+  ))}
+</div>
+
+<style>
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(var(--half-columns), minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .category {
+    grid-row: var(--row);
+    grid-column: var(--column) / span 2;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1.25rem;
+    border: 2px solid transparent;
+    border-radius: calc(var(--radius) * 2);
+    background: linear-gradient(135deg, #1d1d1f, #3a3a3c);
+    color: #fff;
+    text-decoration: none;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .category:hover,
+  .category:focus-visible {
+    transform: translateY(-3px);
+    border-color: var(--color-primary);
+  }
+
+  .icon { font-size: 2rem; }
+  .name { font-weight: 700; font-size: 1.1rem; }
+  .count { color: #c7c7cc; font-size: 0.875rem; }
+
+  /* Mobile : simple grille de 2 colonnes, sans décalage */
+  @media (max-width: 700px) {
+    .categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .category { grid-row: auto; grid-column: auto; }
+  }
+</style>

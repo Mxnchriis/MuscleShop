@@ -1,0 +1,28 @@
+---
+import type { Product } from '../../types';
+import ProductGrid from '../product/ProductGrid.astro';
+
+// Section de l'accueil : titre, lien « Voir tout » et une rangée de produits
+interface Props { id?: string; title: string; subtitle?: string; href: string; products: Product[] }
+const { id, title, subtitle, href, products } = Astro.props;
+---
+{products.length > 0 && (
+  <section id={id} class="section">
+    <header>
+      <div>
+        <h2>{title}</h2>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      <a href={href}>Voir tout →</a>
+    </header>
+    <ProductGrid products={products} />
+  </section>
+)}
+
+<style>
+  .section { margin-top: 3rem; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
+  h2 { margin: 0; }
+  header p { margin: 0.25rem 0 0; color: var(--color-muted); }
+  header a { color: var(--color-primary); font-weight: 600; text-decoration: none; white-space: nowrap; }
+</style>

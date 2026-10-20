@@ -3,7 +3,7 @@ import ShopLayout from '../../layouts/ShopLayout.astro';
 import AddToCartButton from '../../components/islands/AddToCartButton.astro';
 import { createApi } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
-import { productImage } from '../../lib/product';
+import { discountPercent, productImage } from '../../lib/product';
 
 const slug = Astro.params.slug!;
 const api = createApi(Astro.request);
@@ -11,6 +11,7 @@ const api = createApi(Astro.request);
 const res = await api.api.products[':slug'].$get({ param: { slug } });
 if (!res.ok) return new Response('Produit introuvable', { status: 404 });
 const product = await res.json();
+const discount = discountPercent(product);
 ---
 <ShopLayout title={product.name}>
   <div class="product">
@@ -18,7 +19,10 @@ const product = await res.json();
     <div>
       <h1>{product.name}</h1>
       <p>{product.description}</p>
-      <p class="price">{formatPrice(product.price)}</p>
+      <p class="price">
+        {formatPrice(product.price)}
+        {discount && <><s>{formatPrice(product.originalPrice!)}</s> <span class="badge">-{discount} %</span></>}
+      </p>
       <p>{product.stock > 0 ? `En stock (${product.stock})` : 'Rupture de stock'}</p>
       <AddToCartButton productId={product.id} disabled={product.stock === 0} />
     </div>
@@ -28,6 +32,8 @@ const product = await res.json();
 <style>
   .product { display: grid; grid-template-columns: minmax(0, 400px) 1fr; gap: 2rem; align-items: start; }
   .product img { width: 100%; height: auto; border-radius: var(--radius); }
-  .price { font-size: 1.5rem; font-weight: 700; }
+  .price { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem; }
+  .price s { color: var(--color-muted); font-weight: 400; font-size: 1rem; }
+  .badge { padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--color-primary); color: #fff; font-size: 0.875rem; }
   @media (max-width: 700px) { .product { grid-template-columns: 1fr; } }
 </style>

@@ -1,16 +1,56 @@
 ---
 import ShopLayout from '../layouts/ShopLayout.astro';
+import CategoryGrid from '../components/home/CategoryGrid.astro';
+import ProductSection from '../components/home/ProductSection.astro';
 import { createApi } from '../lib/api';
 
 const api = createApi(Astro.request);
-const res = await api.api.categories.$get();
-const { items: categories } = await res.json();
+const products = api.api.products;
+
+// Les 4 appels partent en parallèle (dans le même processus, sans réseau)
+const [categoriesRes, bestSellersRes, promosRes, newestRes] = await Promise.all([
+  api.api.categories.$get(),
+  products.$get({ query: { sort: 'best-sellers', limit: '4' } }),
+  products.$get({ query: { promo: 'true', limit: '4' } }),
+  products.$get({ query: { sort: 'newest', limit: '4' } }),
+]);
+if (!bestSellersRes.ok || !promosRes.ok || !newestRes.ok) return new Response('Erreur catalogue', { status: 500 });
+
+const { items: categories } = await categoriesRes.json();
+const { items: bestSellers } = await bestSellersRes.json();
+const { items: promos } = await promosRes.json();
+const { items: newest } = await newestRes.json();
 ---
 <ShopLayout title="Accueil">
-  <h1>Compléments alimentaires sportifs</h1>
-  <p>Protéines, créatine, vitamines…</p>
-  <ul>
-    {categories.map((category) => <li><a href={`/categories/${category.slug}`}>{category.name}</a></li>)}
-  </ul>
-  <a href="/produits">Voir le catalogue</a>
+  <section class="hero">
+    <h1>Compléments alimentaires sportifs</h1>
+    <p>Protéines, créatine, vitamines et accessoires pour progresser à chaque séance.</p>
+    <div class="actions">
+      <a class="btn" href="/produits">Voir le catalogue</a>
+      <a class="btn btn-secondary" href="#promos">Promos du moment</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Nos catégories</h2>
+    <CategoryGrid categories={categories} />
+  </section>
+
+  <ProductSection title="Meilleures ventes" subtitle="Les produits préférés de nos clients" href="/produits?sort=best-sellers" products={bestSellers} />
+  <ProductSection id="promos" title="Promos du moment" subtitle="Prix réduits, dans la limite des stocks" href="/produits?promo=true" products={promos} />
+  <ProductSection title="Nouveautés" subtitle="Les derniers arrivés au catalogue" href="/produits?sort=newest" products={newest} />
 </ShopLayout>
+
+<style>
+  .hero {
+    padding: 3rem 2rem;
+    border-radius: calc(var(--radius) * 2);
+    background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+    text-align: center;
+  }
+  .hero h1 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.75rem); }
+  .hero p { margin: 0.75rem auto 1.5rem; max-width: 36rem; color: var(--color-muted); }
+  .actions { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
+  .section { margin-top: 3rem; }
+  .section h2 { margin: 0 0 1rem; }
+</style>

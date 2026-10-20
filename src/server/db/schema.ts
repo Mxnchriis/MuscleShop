@@ -12,6 +12,7 @@ export const products = sqliteTable('products', {
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   price: integer('price').notNull(), // centimes
+  originalPrice: integer('original_price'), // prix barré en centimes : renseigné = produit en promo
   stock: integer('stock').notNull().default(0),
   image: text('image'),
   categoryId: integer('category_id').notNull().references(() => categories.id),
