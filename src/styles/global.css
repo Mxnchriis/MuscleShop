@@ -39,6 +39,16 @@ main {
 
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Action secondaire : contour discret, sans la couleur principale */
+.btn-secondary {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  font-weight: 500;
+}
+
+.btn-secondary:hover:not(:disabled) { border-color: var(--color-muted); }
+
 /* Bouton qui ressemble à un lien (déconnexion, retirer du panier) */
 .link {
   padding: 0;

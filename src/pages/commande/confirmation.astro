@@ -14,8 +14,9 @@ const res = await api.api.orders[':id'].$get({ param: { id } });
 if (!res.ok) return Astro.redirect('/compte/commandes');
 const order = await res.json();
 
-// Paiement confirmé : on vide le panier
-if (order.status === 'paid') {
+// Paiement confirmé d'une commande issue du panier : on vide le panier
+// (pas quand on paie une ancienne commande depuis « Mes commandes »)
+if (order.status === 'paid' && Astro.url.searchParams.get('source') === 'cart') {
   Astro.cookies.delete(CART_COOKIE, { path: '/' });
   Astro.locals.cartCount = 0;
 }

@@ -1,0 +1,58 @@
+---
+import type { OrderStatus } from '../../types';
+
+// Actions selon le statut :
+// - en attente : payer ou annuler
+// - payée, expédiée ou annulée : recommander (nouvelle commande avec les mêmes produits)
+interface Props { orderId: number; status: OrderStatus }
+const { orderId, status } = Astro.props;
+---
+<span class="order-actions" data-order-id={orderId}>
+  {status === 'pending' ? (
+    <>
+      <button class="btn" type="button" data-action="pay">Payer</button>
+      <button class="link" type="button" data-action="cancel">Annuler</button>
+    </>
+  ) : (
+    <button class="btn btn-secondary" type="button" data-action="reorder">Recommander</button>
+  )}
+  <span class="error" role="alert"></span>
+</span>
+
+<script>
+  type Action = 'pay' | 'cancel' | 'reorder';
+
+  document.querySelectorAll<HTMLElement>('.order-actions').forEach((actions) => {
+    const error = actions.querySelector<HTMLElement>('.error')!;
+    const buttons = actions.querySelectorAll<HTMLButtonElement>('button');
+
+    async function run(action: Action) {
+      buttons.forEach((button) => (button.disabled = true));
+      error.textContent = '';
+      const res = await fetch(`/api/orders/${actions.dataset.orderId}/${action}`, { method: 'POST' });
+      const data = await res.json();
+
+      if (res.ok) {
+        // Payer / recommander : direction la page Stripe ; annuler : on recharge la liste
+        if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+        else window.location.reload();
+        return;
+      }
+      error.textContent = data.error ?? 'Action impossible';
+      buttons.forEach((button) => (button.disabled = false));
+    }
+
+    buttons.forEach((button) => {
+      const action = button.dataset.action as Action;
+      button.addEventListener('click', () => {
+        if (action === 'cancel' && !confirm(`Annuler la commande n° ${actions.dataset.orderId} ?`)) return;
+        run(action);
+      });
+    });
+  });
+</script>
+
+<style>
+  .order-actions { display: inline-flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .btn { padding: 0.35rem 0.75rem; }
+</style>

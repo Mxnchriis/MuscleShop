@@ -1,33 +1,38 @@
 import Stripe from 'stripe';
 import { env } from '../env';
-import type { CartLine } from '../../types';
-
 // Seul fichier qui parle à Stripe : facile à remplacer (ou à simuler dans les tests)
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+
+export interface CheckoutItem {
+  name: string;
+  unitPrice: number; // en centimes, comme Stripe l'attend
+  quantity: number;
+}
 
 interface CheckoutInput {
   orderId: number;
   email: string;
-  lines: CartLine[];
-  origin: string; // ex. http://localhost:4321, pour construire les URLs de retour
+  items: CheckoutItem[];
+  successUrl: string;
+  cancelUrl: string;
 }
 
 // Crée la page de paiement hébergée par Stripe (Checkout) et renvoie son URL
-export async function createCheckoutSession({ orderId, email, lines, origin }: CheckoutInput) {
+export async function createCheckoutSession({ orderId, email, items, successUrl, cancelUrl }: CheckoutInput) {
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     customer_email: email,
-    line_items: lines.map((line) => ({
-      quantity: line.quantity,
+    line_items: items.map((item) => ({
+      quantity: item.quantity,
       price_data: {
         currency: 'eur',
-        unit_amount: line.product.price, // déjà en centimes, comme Stripe l'attend
-        product_data: { name: line.product.name },
+        unit_amount: item.unitPrice,
+        product_data: { name: item.name },
       },
     })),
     metadata: { orderId: String(orderId) },
-    success_url: `${origin}/commande/confirmation?id=${orderId}`,
-    cancel_url: `${origin}/commande/annulee?id=${orderId}`,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
   });
   return { id: session.id, url: session.url! };
 }

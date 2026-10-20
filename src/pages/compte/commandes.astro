@@ -1,5 +1,6 @@
 ---
 import ShopLayout from '../../layouts/ShopLayout.astro';
+import OrderActions from '../../components/islands/OrderActions.astro';
 import { createApi } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
 import { loginUrl } from '../../lib/redirect';
@@ -9,6 +10,11 @@ if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
 const api = createApi(Astro.request);
 const { items: orders } = await (await api.api.orders.$get()).json();
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+const MAX_PRODUCTS = 2; // au-delà, on affiche « … » (liste complète au survol)
+const MAX_LABEL_LENGTH = 20; // caractères par produit, ex. "x1 Créatine monohydr"
+const productLabel = (item: { name: string; quantity: number }) => `x${item.quantity} ${item.name}`;
+const shortLabel = (item: { name: string; quantity: number }) =>
+  [...productLabel(item)].slice(0, MAX_LABEL_LENGTH).join('').trimEnd();
 const statusLabels = { pending: 'En attente de paiement', paid: 'Payée', shipped: 'Expédiée', cancelled: 'Annulée' };
 ---
 <ShopLayout title="Mes commandes">
@@ -16,23 +22,49 @@ const statusLabels = { pending: 'En attente de paiement', paid: 'Payée', shippe
   {orders.length === 0 ? (
     <p>Aucune commande pour l'instant. <a href="/produits">Voir le catalogue</a></p>
   ) : (
-    <table>
-      <thead><tr><th>N°</th><th>Date</th><th>Statut</th><th>Total</th></tr></thead>
-      <tbody>
-        {orders.map((order) => (
-          <tr>
-            <td><a href={`/commande/confirmation?id=${order.id}`}>{order.id}</a></td>
-            <td>{dateFormatter.format(new Date(order.createdAt))}</td>
-            <td>{statusLabels[order.status]}</td>
-            <td>{formatPrice(order.total)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div class="table-wrapper">
+      <table>
+        <colgroup>
+          <col class="col-id" /><col class="col-date" /><col class="col-products" />
+          <col class="col-status" /><col class="col-total" /><col class="col-actions" />
+        </colgroup>
+        <thead><tr><th>N°</th><th>Date</th><th>Produits</th><th>Statut</th><th>Total</th><th></th></tr></thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr>
+              <td><a href={`/commande/confirmation?id=${order.id}`}>{order.id}</a></td>
+              <td>{dateFormatter.format(new Date(order.createdAt))}</td>
+              <td>
+                <ul class="products" title={order.items.map(productLabel).join('\n')}>
+                  {order.items.slice(0, MAX_PRODUCTS).map((item) => <li>{shortLabel(item)}</li>)}
+                  {order.items.length > MAX_PRODUCTS && <li aria-label={`et ${order.items.length - MAX_PRODUCTS} autre(s)`}>…</li>}
+                </ul>
+              </td>
+              <td>{statusLabels[order.status]}</td>
+              <td>{formatPrice(order.total)}</td>
+              <td><OrderActions orderId={order.id} status={order.status} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )}
 </ShopLayout>
 
 <style>
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--color-border); }
+  /* Largeurs figées par colonne : identiques sur toutes les lignes, quel que soit le contenu */
+  .table-wrapper { overflow-x: auto; }
+  table { width: 100%; min-width: 52rem; border-collapse: collapse; table-layout: fixed; }
+  .col-id { width: 4rem; }
+  .col-date { width: 10rem; }
+  .col-products { width: 13rem; }
+  .col-status { width: 12rem; }
+  .col-total { width: 7rem; }
+  .col-actions { width: 12rem; }
+  th, td { text-align: center; vertical-align: middle; padding: 0.5rem; border-bottom: 1px solid var(--color-border); }
+  /* Même hauteur pour toutes les commandes */
+  tbody tr { height: 80px; }
+  /* 3 lignes max (2 produits + « … ») de 21px : tiennent dans les 64px utiles de la ligne */
+  .products { list-style: none; margin: 0; padding: 0; font-size: 0.875rem; line-height: 1.5; color: var(--color-muted); }
+  .products li { overflow: hidden; white-space: nowrap; }
 </style>
