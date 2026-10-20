@@ -1,5 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import app from '../../src/server/app';
+
+// Stripe simulé : pas d'appel réseau, et on choisit le résultat du paiement dans chaque test
+const stripe = vi.hoisted(() => ({ paid: false, expired: false, expiredSessions: [] as string[] }));
+vi.mock('../../src/server/services/payment', () => ({
+  createCheckoutSession: async ({ orderId }: { orderId: number }) => ({
+    id: `cs_test_${orderId}`,
+    url: `https://checkout.stripe.com/c/pay/cs_test_${orderId}`,
+  }),
+  getCheckoutStatus: async () => ({ paid: stripe.paid, expired: stripe.expired }),
+  expireCheckoutSession: async (id: string) => void stripe.expiredSessions.push(id),
+}));
 
 // Simule un navigateur : renvoie les cookies reçus à chaque requête
 function createClient() {
@@ -72,30 +83,71 @@ describe('Authentification', () => {
 });
 
 describe('Commande', () => {
+  beforeEach(() => Object.assign(stripe, { paid: false, expired: false, expiredSessions: [] }));
+
+  const stockOf = async (request: ReturnType<typeof createClient>) =>
+    (await (await request('/api/products/creatine-monohydrate-300g')).json()).stock as number;
+
+  // Utilisateur connecté avec 2 créatines dans le panier, commande créée
+  async function checkout() {
+    const request = createClient();
+    await request('/api/auth/login', { method: 'POST', body: credentials });
+    await request('/api/cart/items', { method: 'POST', body: { productId: 2, quantity: 2 } });
+    const res = await request('/api/orders', { method: 'POST' });
+    return { request, res, order: await res.json() };
+  }
+
   it('exige une connexion', async () => {
     const request = createClient();
     await request('/api/cart/items', { method: 'POST', body: { productId: 2, quantity: 1 } });
     expect((await request('/api/orders', { method: 'POST' })).status).toBe(401);
   });
 
-  it('crée la commande, baisse le stock et vide le panier', async () => {
-    const request = createClient();
-    const stockBefore = (await (await request('/api/products/creatine-monohydrate-300g')).json()).stock;
-
-    await request('/api/auth/login', { method: 'POST', body: credentials });
-    await request('/api/cart/items', { method: 'POST', body: { productId: 2, quantity: 2 } });
-    const res = await request('/api/orders', { method: 'POST' });
-    expect(res.status).toBe(201);
-    const order = await res.json();
-
-    expect((await (await request('/api/products/creatine-monohydrate-300g')).json()).stock).toBe(stockBefore - 2);
-    expect((await (await request('/api/cart')).json()).count).toBe(0);
-    expect((await (await request(`/api/orders/${order.id}`)).json()).items).toHaveLength(1);
-  });
-
   it('refuse une commande avec un panier vide', async () => {
     const request = createClient();
     await request('/api/auth/login', { method: 'POST', body: credentials });
     expect((await request('/api/orders', { method: 'POST' })).status).toBe(400);
+  });
+
+  it('renvoie une URL Stripe sans toucher au stock ni au panier', async () => {
+    const before = await stockOf(createClient());
+    const { request, res, order } = await checkout();
+
+    expect(res.status).toBe(201);
+    expect(order.checkoutUrl).toMatch(/^https:\/\/checkout\.stripe\.com\//);
+    expect(await stockOf(request)).toBe(before);
+    expect((await (await request('/api/cart')).json()).count).toBe(2);
+  });
+
+  it('paiement confirmé par Stripe : commande payée, stock décrémenté une seule fois', async () => {
+    const before = await stockOf(createClient());
+    const { request, order } = await checkout();
+
+    stripe.paid = true;
+    expect((await (await request(`/api/orders/${order.id}`)).json()).status).toBe('paid');
+    await request(`/api/orders/${order.id}`); // second retour sur la page : pas de double décrément
+    expect(await stockOf(request)).toBe(before - 2);
+  });
+
+  it('paiement non effectué : la commande reste en attente', async () => {
+    const { request, order } = await checkout();
+    expect((await (await request(`/api/orders/${order.id}`)).json()).status).toBe('pending');
+  });
+
+  it('annulation : commande annulée et session Stripe fermée', async () => {
+    const { request, order } = await checkout();
+    const res = await request(`/api/orders/${order.id}/cancel`, { method: 'POST' });
+    expect((await res.json()).status).toBe('cancelled');
+    expect(stripe.expiredSessions).toEqual([`cs_test_${order.id}`]);
+  });
+
+  it("un utilisateur ne voit pas la commande d'un autre", async () => {
+    const { order } = await checkout();
+    const other = createClient();
+    await other('/api/auth/register', {
+      method: 'POST',
+      body: { email: `autre-${Date.now()}@muscleshop.fr`, password: 'motdepasse', name: 'Autre' },
+    });
+    expect((await other(`/api/orders/${order.id}`)).status).toBe(404);
   });
 });

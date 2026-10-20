@@ -3,18 +3,40 @@ import ShopLayout from '../../layouts/ShopLayout.astro';
 import { createApi } from '../../lib/api';
 import { formatPrice } from '../../lib/format';
 import { loginUrl } from '../../lib/redirect';
+import { CART_COOKIE } from '../../server/services/cart';
 
 if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
 
+// Retour de Stripe : l'API vérifie auprès de Stripe que le paiement est bien passé
 const id = Astro.url.searchParams.get('id') ?? '';
 const api = createApi(Astro.request);
 const res = await api.api.orders[':id'].$get({ param: { id } });
 if (!res.ok) return Astro.redirect('/compte/commandes');
 const order = await res.json();
+
+// Paiement confirmé : on vide le panier
+if (order.status === 'paid') {
+  Astro.cookies.delete(CART_COOKIE, { path: '/' });
+  Astro.locals.cartCount = 0;
+}
 ---
 <ShopLayout title="Confirmation">
-  <h1>Merci pour votre commande !</h1>
-  <p>Commande n° <strong>{order.id}</strong>, total <strong>{formatPrice(order.total)}</strong>.</p>
+  {order.status === 'paid' ? (
+    <>
+      <h1>Merci pour votre commande !</h1>
+      <p>Paiement confirmé. Commande n° <strong>{order.id}</strong>, total <strong>{formatPrice(order.total)}</strong>.</p>
+    </>
+  ) : order.status === 'cancelled' ? (
+    <>
+      <h1>Commande annulée</h1>
+      <p>La commande n° {order.id} a été annulée, aucun paiement n'a été effectué.</p>
+    </>
+  ) : (
+    <>
+      <h1>Paiement en attente</h1>
+      <p>Le paiement de la commande n° {order.id} n'est pas encore confirmé. <a href={`/commande/confirmation?id=${order.id}`}>Actualiser</a></p>
+    </>
+  )}
   <ul>
     {order.items.map((item) => <li>{item.name} × {item.quantity}</li>)}
   </ul>

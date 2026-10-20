@@ -29,6 +29,7 @@ export const orders = sqliteTable('orders', {
   userId: integer('user_id').notNull().references(() => users.id),
   status: text('status', { enum: ['pending', 'paid', 'shipped', 'cancelled'] }).notNull().default('pending'),
   total: integer('total').notNull(),
+  stripeSessionId: text('stripe_session_id'), // session Stripe Checkout liée à la commande
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 

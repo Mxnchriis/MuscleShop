@@ -16,5 +16,6 @@ function required(name: string): string {
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL ?? 'sqlite.db',
   JWT_SECRET: required('JWT_SECRET'),
+  STRIPE_SECRET_KEY: required('STRIPE_SECRET_KEY'),
   isProd: process.env.NODE_ENV === 'production',
 };

@@ -24,8 +24,8 @@ if (cart.lines.length === 0) return Astro.redirect('/panier');
 
   <div class="pay">
     <p class="error" role="alert" id="checkout-error"></p>
-    <button class="btn" id="checkout" type="button">Payer {formatPrice(cart.total)}</button>
-    <p class="hint">Paiement simulé : la commande est enregistrée sans débit (Stripe à venir).</p>
+    <button class="btn" id="checkout" type="button">Payer {formatPrice(cart.total)} avec Stripe</button>
+    <p class="hint">Mode test : carte 4242 4242 4242 4242, date future, CVC quelconque. Aucun débit réel.</p>
   </div>
 </ShopLayout>
 
@@ -38,7 +38,8 @@ if (cart.lines.length === 0) return Astro.redirect('/panier');
     const res = await fetch('/api/orders', { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      window.location.href = `/commande/confirmation?id=${data.id}`;
+      // Direction la page de paiement hébergée par Stripe
+      window.location.href = data.checkoutUrl;
       return;
     }
     error.textContent = data.error ?? 'La commande a échoué';

@@ -1,0 +1,18 @@
+---
+import ShopLayout from '../../layouts/ShopLayout.astro';
+import { createApi } from '../../lib/api';
+import { loginUrl } from '../../lib/redirect';
+
+if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
+
+// Retour de Stripe après "Retour" sur la page de paiement : la commande en attente est annulée
+const id = Astro.url.searchParams.get('id') ?? '';
+const api = createApi(Astro.request);
+await api.api.orders[':id'].cancel.$post({ param: { id } });
+---
+<ShopLayout title="Paiement annulé">
+  <h1>Paiement annulé</h1>
+  <p>Aucun montant n'a été débité. Votre panier est conservé.</p>
+  <a class="btn" href="/commande">Réessayer</a>
+  <a href="/panier">Modifier le panier</a>
+</ShopLayout>
