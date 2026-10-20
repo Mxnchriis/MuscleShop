@@ -36,6 +36,7 @@ Le `package.json` a été écrit à la main plutôt que généré par `npm creat
 | `zod` | 4.x | Validation des données entrantes |
 | `drizzle-orm` | 0.45.x | ORM typé pour la base de données |
 | `better-sqlite3` | 13.x | Pilote SQLite (la base est un simple fichier, rien à installer) |
+| `stripe` | 23.x | SDK Stripe : paiement Checkout en mode test (ajouté avec le paiement) |
 
 ### Dépendances de développement
 
@@ -78,7 +79,7 @@ Le `package.json` a été écrit à la main plutôt que généré par `npm creat
 | `astro.config.mjs` | `output: 'server'` et adaptateur `@astrojs/node` en mode `standalone`. Sans SSR, la route `/api` ne pourrait pas répondre dynamiquement. |
 | `tsconfig.json` | Hérite du preset `astro/tsconfigs/strict` (TypeScript strict). |
 | `drizzle.config.ts` | Indique à `drizzle-kit` où trouver le schéma (`src/server/db/schema.ts`) et la base (`DATABASE_URL`, par défaut `sqlite.db`). |
-| `vitest.config.ts` | Limite Vitest aux fichiers `tests/api/**/*.test.ts`. |
+| `vitest.config.ts` | Limite Vitest aux fichiers `tests/api/**/*.test.ts`, utilise une base dédiée `test.db` (recréée par `tests/api/setup.ts`) et des secrets de test. |
 | `playwright.config.ts` | Tests dans `tests/e2e`, URL de base `localhost:4321`, démarre `npm run dev` automatiquement si besoin. |
 | `.env.example` | Modèle des variables d'environnement : `DATABASE_URL`, `STRIPE_SECRET_KEY`, `JWT_SECRET`. |
 | `.gitignore` | Exclut `node_modules/`, `dist/`, `.astro/`, `.env`, les fichiers `*.db` et les rapports de tests. |
@@ -214,11 +215,17 @@ npx playwright install
 
 ---
 
-## 10. Prochaines étapes
+## 10. Suite du projet
 
-- Brancher les routes Hono sur la base (`db` dans `src/server/db/client.ts`).
-- Implémenter l'authentification : hachage des mots de passe, JWT avec `hono/jwt`, cookie `session`.
-- Afficher les vraies données dans les pages, via le client RPC de `src/lib/api.ts`.
-- Stocker le panier (cookie ou table dédiée).
-- Ajouter le paiement : Stripe en mode test, ou paiement simulé.
-- Remplir `docs/analyse-astro-hono.md` au fil du projet.
+Les étapes prévues à l'initialisation ont été réalisées depuis :
+
+- **Routes Hono :** branchées sur la base via des services (`src/server/services/`).
+- **Authentification :** scrypt, JWT avec `hono/jwt`, cookie `session` (`httpOnly`).
+- **Pages :** elles affichent les vraies données via le client RPC, appelé dans le même processus (`app.request`).
+- **Panier :** stocké dans un cookie validé par Zod.
+- **Paiement :** Stripe Checkout en mode test (cartes de test : [`paiement.md`](paiement.md)).
+- **Mes commandes :** payer, annuler, recommander.
+- **Accueil :** 28 produits, promos (colonne `original_price`), meilleures ventes, nouveautés.
+- **Analyse et benchmarks :** dans [`analyse-astro-hono.md`](analyse-astro-hono.md).
+
+Après un `git pull`, relancer `npm run db:push`, car le schéma a évolué (`stripe_session_id`, `original_price`), puis `npm run db:seed`. Le script `npm run db:studio` permet de parcourir la base.

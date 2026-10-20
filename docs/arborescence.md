@@ -19,88 +19,118 @@ alternative à documenter dans le rapport.
 
 ```
 muscle-shop/
-├── astro.config.mjs          # Config Astro : output "server" + adapter Node (SSR nécessaire pour /api)
+├── astro.config.mjs          # Config Astro : output "server" + adaptateur Node (SSR nécessaire pour /api)
+├── drizzle.config.ts         # Schéma et base pour drizzle-kit (db:push, db:studio)
+├── vitest.config.ts          # Tests de l'API sur une base dédiée (test.db)
+├── playwright.config.ts      # Tests E2E
 ├── package.json
 ├── tsconfig.json
-├── .env.example              # Variables d'env (URL BDD, clé Stripe test, secret JWT)
+├── .env.example              # Variables d'env : DATABASE_URL, STRIPE_SECRET_KEY, JWT_SECRET
 ├── README.md
 │
 ├── public/                   # Fichiers statiques servis tels quels
 │   ├── favicon.svg
-│   └── images/products/      # Photos produits (whey, créatine, BCAA…)
+│   └── images/products/
+│       └── placeholder.svg           # Image par défaut des produits sans photo
 │
-├── docs/                     # Livrables TechLab : notes, benchmarks, bénéfices/limites
-│   └── analyse-astro-hono.md
+├── docs/                     # Livrables TechLab
+│   ├── analyse-astro-hono.md         # Bénéfices, limites, benchmarks, alternative monorepo
+│   ├── arborescence.md               # Ce fichier
+│   ├── Config.md                     # Initialisation du projet
+│   └── paiement.md                   # Cartes Stripe de test
 │
 ├── src/
-│   ├── pages/                # Routage Astro basé sur les fichiers
-│   │   ├── index.astro               # Accueil (mise en avant, catégories)
+│   ├── pages/                # ASTRO : routage basé sur les fichiers
+│   │   ├── index.astro               # Accueil : catégories en briques, meilleures ventes, promos, nouveautés
 │   │   ├── produits/
-│   │   │   ├── index.astro           # Catalogue avec filtres
+│   │   │   ├── index.astro           # Catalogue : recherche, ?promo=true, ?sort=
 │   │   │   └── [slug].astro          # Fiche produit
-│   │   ├── categories/[slug].astro   # Protéines, pré-workout, vitamines…
+│   │   ├── categories/[slug].astro   # Produits d'une catégorie
 │   │   ├── panier.astro
 │   │   ├── commande/
-│   │   │   ├── index.astro           # Tunnel de commande
-│   │   │   └── confirmation.astro
+│   │   │   ├── index.astro           # Récapitulatif (connexion obligatoire) → paiement Stripe
+│   │   │   ├── confirmation.astro    # Retour de Stripe : statut vérifié, panier vidé
+│   │   │   └── annulee.astro         # « Retour » depuis Stripe : commande annulée
 │   │   ├── compte/
 │   │   │   ├── connexion.astro
 │   │   │   ├── inscription.astro
-│   │   │   └── commandes.astro       # Historique client
+│   │   │   └── commandes.astro       # Mes commandes : payer, annuler, recommander
 │   │   └── api/
-│   │       └── [...path].ts          # Point de jonction : passe toute requête /api/* à Hono
+│   │       └── [...path].ts          # ★ Point de jonction : toute requête /api/* passe à Hono
 │   │
-│   ├── server/               # Tout le back-end Hono, indépendant d'Astro
-│   │   ├── app.ts                    # Instance Hono, basePath('/api'), montage des routes, export du type AppType
-│   │   ├── routes/                   # Un fichier par ressource REST
-│   │   │   ├── products.ts           # GET liste / détail, recherche, filtres
-│   │   │   ├── categories.ts
-│   │   │   ├── cart.ts               # Ajout, retrait, mise à jour des quantités
-│   │   │   ├── orders.ts             # Création et suivi des commandes
-│   │   │   └── auth.ts               # Inscription, connexion, déconnexion
-│   │   ├── middlewares/              # auth (JWT/cookie), logger, gestion d'erreurs, CORS si besoin
-│   │   ├── validators/               # Schémas Zod utilisés avec @hono/zod-validator
-│   │   ├── services/                 # Logique métier (calcul du panier, stock, paiement)
+│   ├── middleware.ts         # Middleware Astro : session et taille du panier → Astro.locals
+│   │
+│   ├── server/               # HONO : tout le back-end, indépendant d'Astro
+│   │   ├── app.ts                    # Instance Hono, basePath('/api'), montage des routes, type AppType
+│   │   ├── env.ts                    # Charge .env dans process.env et vérifie les secrets
+│   │   ├── routes/                   # Un fichier par ressource REST (routes fines : valider → service → JSON)
+│   │   │   ├── products.ts           # Liste (filtres, tris, promos), détail
+│   │   │   ├── categories.ts         # Liste avec nombre de produits, détail
+│   │   │   ├── cart.ts               # Ajout, modification, retrait (cookie)
+│   │   │   ├── orders.ts             # Commander, payer, annuler, recommander
+│   │   │   └── auth.ts               # Inscription, connexion, déconnexion, /me
+│   │   ├── middlewares/
+│   │   │   ├── auth.ts               # requireAuth : vérifie le JWT
+│   │   │   └── error-handler.ts      # Erreurs → JSON { error }
+│   │   ├── validators/               # Schémas Zod (produits, panier, auth)
+│   │   ├── services/                 # Logique métier, testable seule
+│   │   │   ├── catalog.ts            # Requêtes produits et catégories, meilleures ventes
+│   │   │   ├── cart.ts               # Lecture et écriture du cookie, calcul du panier
+│   │   │   ├── auth.ts               # scrypt, JWT
+│   │   │   ├── orders.ts             # Commandes, statut, stock
+│   │   │   └── payment.ts            # Seul fichier qui parle à Stripe
 │   │   └── db/
-│   │       ├── schema.ts             # Tables (produits, catégories, users, commandes)
-│   │       ├── client.ts             # Connexion BDD (ex. Drizzle + SQLite)
-│   │       └── seed.ts               # Jeu de données de démo
+│   │       ├── schema.ts             # Tables : categories, products, users, orders, order_items
+│   │       ├── client.ts             # Connexion Drizzle + SQLite
+│   │       └── seed.ts               # 7 catégories, 28 produits (relançable)
 │   │
 │   ├── components/           # Composants Astro réutilisables
-│   │   ├── layout/                   # Header, Footer, Navigation
-│   │   ├── product/                  # ProductCard, ProductGrid, NutritionTable
+│   │   ├── layout/                   # Header, Navigation, Footer
+│   │   ├── home/                     # CategoryGrid (grille décalée), ProductSection
+│   │   ├── product/                  # ProductCard (badge promo), ProductGrid, NutritionTable
 │   │   ├── cart/                     # CartItem, CartSummary
-│   │   └── islands/                  # Composants interactifs hydratés (bouton panier, filtres)
+│   │   └── islands/                  # Seuls composants avec du JS navigateur
+│   │       ├── AddToCartButton.astro
+│   │       ├── AuthForm.astro
+│   │       └── OrderActions.astro
 │   │
 │   ├── layouts/              # Gabarits de page (BaseLayout, ShopLayout)
-│   ├── lib/                  # Code partagé front : client RPC Hono (hc<AppType>), helpers prix/format
-│   ├── types/                # Types communs front/back (Product, Order, CartItem…)
-│   ├── styles/               # CSS global, variables de thème
-│   └── env.d.ts              # Types d'environnement Astro
+│   ├── lib/                  # Côté front : client RPC (api.ts), prix, images, redirections sûres
+│   ├── types/                # Types communs front/back (Product, Cart, Order, SessionUser…)
+│   ├── styles/               # CSS global : variables de thème, .btn, .btn-secondary, formulaires
+│   └── env.d.ts              # Types des variables d'env et de Astro.locals
 │
 └── tests/
-    ├── api/                  # Tests des routes Hono via app.request() (sans serveur)
-    └── e2e/                  # Parcours utilisateur (Playwright) : catalogue → panier → commande
+    ├── api/                  # Tests Hono via app.request() (sans serveur)
+    │   ├── setup.ts                  # Recrée test.db avant les tests
+    │   ├── health.test.ts
+    │   ├── catalog.test.ts
+    │   └── shop.test.ts              # Panier, auth, commandes (Stripe simulé)
+    └── e2e/                  # Parcours utilisateur (Playwright)
 ```
 
 ## Rôle des dossiers clés
 
-- **`src/pages/`** : chaque fichier devient une URL ; c'est le domaine d'Astro (rendu HTML, SEO).
-- **`src/pages/api/[...path].ts`** : le seul endroit où Astro et Hono se touchent, quelques lignes.
+- **`src/pages/`** : chaque fichier devient une URL. C'est le domaine d'Astro (rendu HTML, SEO).
+- **`src/pages/api/[...path].ts`** : le seul endroit où Astro passe la main à Hono, en 3 lignes.
+- **`src/middleware.ts`** : le middleware Astro. Il réutilise les services Hono pour lire la session et le panier.
 - **`src/server/`** : l'API Hono, isolée pour pouvoir être extraite en service autonome sans réécriture.
-- **`src/server/routes/`** : une ressource par fichier, chaque fichier exporte un sous-routeur Hono.
+- **`src/server/routes/`** : une ressource par fichier. Chaque fichier exporte un sous-routeur Hono.
 - **`src/server/validators/`** : validation des entrées (Zod) branchée sur Hono, pour des routes typées de bout en bout.
-- **`src/server/services/`** : la logique métier, séparée des routes pour être testable seule.
+- **`src/server/services/`** : la logique métier, séparée des routes pour être testable seule et réutilisable par Astro.
 - **`src/server/db/`** : schéma, connexion et données de démo.
-- **`src/components/islands/`** : les seuls composants qui envoient du JavaScript au navigateur (architecture en îlots d'Astro).
-- **`src/lib/`** : le client RPC typé qui permet aux pages Astro d'appeler l'API Hono avec autocomplétion.
+- **`src/components/islands/`** : les seuls composants qui envoient du JavaScript au navigateur (architecture en îlots d'Astro). Moins de 1 Ko par page.
+- **`src/lib/api.ts`** : le client RPC typé. Les pages appellent Hono dans le même processus (`app.request`), sans réseau.
 - **`src/types/`** : le contrat partagé entre front et back.
-- **`docs/`** : la matière du rapport TechLab, alimentée au fil du projet.
-- **`tests/api/`** : Hono se teste sans démarrer de serveur, un bénéfice à mesurer.
+- **`docs/`** : la matière du rapport TechLab.
+- **`tests/api/`** : Hono se teste sans démarrer de serveur.
 
-## Choix par défaut (modifiables)
+## Choix retenus
 
-- Rendu : SSR avec `@astrojs/node` (requis pour exposer l'API).
-- BDD : SQLite + Drizzle ORM (zéro installation, suffisant pour une démo).
-- Paiement : Stripe en mode test, ou paiement simulé si on veut rester simple.
-- Îlots interactifs : composants Astro + un peu de JS, ou Preact si besoin de plus d'état.
+- **Rendu :** SSR avec `@astrojs/node`, requis pour exposer l'API.
+- **Base de données :** SQLite + Drizzle ORM. Rien à installer, suffisant pour une démo.
+- **Appels des pages vers l'API :** client RPC `hc` + `app.request()`, sans réseau. Environ 1,8 fois plus rapide que HTTP sur l'accueil.
+- **Panier :** cookie `httpOnly` validé par Zod, utilisable sans compte.
+- **Authentification :** scrypt + JWT (`hono/jwt`) dans un cookie `httpOnly`.
+- **Paiement :** Stripe Checkout en mode test. Le statut est vérifié auprès de Stripe au retour.
+- **Îlots interactifs :** composants Astro + un peu de JavaScript, sans framework client.
