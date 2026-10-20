@@ -1,10 +1,33 @@
 ---
 import ShopLayout from '../../layouts/ShopLayout.astro';
 import AddToCartButton from '../../components/islands/AddToCartButton.astro';
+import { createApi } from '../../lib/api';
+import { formatPrice } from '../../lib/format';
+import { productImage } from '../../lib/product';
 
 const slug = Astro.params.slug!;
+const api = createApi(Astro.request);
+
+const res = await api.api.products[':slug'].$get({ param: { slug } });
+if (!res.ok) return new Response('Produit introuvable', { status: 404 });
+const product = await res.json();
 ---
-<ShopLayout title={slug}>
-  <h1>{slug}</h1>
-  <AddToCartButton productId={0} />
+<ShopLayout title={product.name}>
+  <div class="product">
+    <img src={productImage(product)} alt={product.name} width="400" height="400" />
+    <div>
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+      <p class="price">{formatPrice(product.price)}</p>
+      <p>{product.stock > 0 ? `En stock (${product.stock})` : 'Rupture de stock'}</p>
+      <AddToCartButton productId={product.id} disabled={product.stock === 0} />
+    </div>
+  </div>
 </ShopLayout>
+
+<style>
+  .product { display: grid; grid-template-columns: minmax(0, 400px) 1fr; gap: 2rem; align-items: start; }
+  .product img { width: 100%; height: auto; border-radius: var(--radius); }
+  .price { font-size: 1.5rem; font-weight: 700; }
+  @media (max-width: 700px) { .product { grid-template-columns: 1fr; } }
+</style>

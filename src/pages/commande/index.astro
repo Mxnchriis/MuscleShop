@@ -1,6 +1,52 @@
 ---
 import ShopLayout from '../../layouts/ShopLayout.astro';
+import CartSummary from '../../components/cart/CartSummary.astro';
+import { createApi } from '../../lib/api';
+import { formatPrice } from '../../lib/format';
+import { loginUrl } from '../../lib/redirect';
+
+// Page protégée : sans session, on part se connecter puis on revient ici
+const { user } = Astro.locals;
+if (!user) return Astro.redirect(loginUrl(Astro.url));
+
+const api = createApi(Astro.request);
+const cart = await (await api.api.cart.$get()).json();
+if (cart.lines.length === 0) return Astro.redirect('/panier');
 ---
 <ShopLayout title="Commande">
   <h1>Commande</h1>
+  <p>Livraison pour <strong>{user.name}</strong> ({user.email})</p>
+
+  <ul>
+    {cart.lines.map((line) => <li>{line.product.name} × {line.quantity} : {formatPrice(line.subtotal)}</li>)}
+  </ul>
+  <CartSummary total={cart.total} showCheckout={false} />
+
+  <div class="pay">
+    <p class="error" role="alert" id="checkout-error"></p>
+    <button class="btn" id="checkout" type="button">Payer {formatPrice(cart.total)}</button>
+    <p class="hint">Paiement simulé : la commande est enregistrée sans débit (Stripe à venir).</p>
+  </div>
 </ShopLayout>
+
+<script>
+  const button = document.getElementById('checkout') as HTMLButtonElement;
+  const error = document.getElementById('checkout-error')!;
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    const res = await fetch('/api/orders', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = `/commande/confirmation?id=${data.id}`;
+      return;
+    }
+    error.textContent = data.error ?? 'La commande a échoué';
+    button.disabled = false;
+  });
+</script>
+
+<style>
+  .pay { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+  .hint { color: var(--color-muted); font-size: 0.875rem; margin: 0; }
+</style>

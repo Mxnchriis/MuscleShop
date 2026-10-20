@@ -1,8 +1,20 @@
 ---
 import ShopLayout from '../../layouts/ShopLayout.astro';
 import ProductGrid from '../../components/product/ProductGrid.astro';
+import { createApi } from '../../lib/api';
+
+const q = Astro.url.searchParams.get('q') ?? undefined;
+const api = createApi(Astro.request);
+
+const res = await api.api.products.$get({ query: { q } });
+if (!res.ok) return new Response('Recherche invalide', { status: 400 });
+const { items } = await res.json();
 ---
 <ShopLayout title="Catalogue">
   <h1>Catalogue</h1>
-  <ProductGrid products={[]} />
+  <form method="get">
+    <input type="search" name="q" value={q} placeholder="Rechercher un produit" />
+    <button type="submit">Rechercher</button>
+  </form>
+  {items.length > 0 ? <ProductGrid products={items} /> : <p>Aucun produit trouvé.</p>}
 </ShopLayout>

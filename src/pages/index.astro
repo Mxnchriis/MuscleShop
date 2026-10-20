@@ -1,8 +1,16 @@
 ---
 import ShopLayout from '../layouts/ShopLayout.astro';
+import { createApi } from '../lib/api';
+
+const api = createApi(Astro.request);
+const res = await api.api.categories.$get();
+const { items: categories } = await res.json();
 ---
 <ShopLayout title="Accueil">
   <h1>Compléments alimentaires sportifs</h1>
   <p>Protéines, créatine, vitamines…</p>
+  <ul>
+    {categories.map((category) => <li><a href={`/categories/${category.slug}`}>{category.name}</a></li>)}
+  </ul>
   <a href="/produits">Voir le catalogue</a>
 </ShopLayout>

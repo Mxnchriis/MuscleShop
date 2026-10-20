@@ -1,13 +1,25 @@
 ---
 import type { Product } from '../../types';
 import { formatPrice } from '../../lib/format';
+import { productImage } from '../../lib/product';
+import AddToCartButton from '../islands/AddToCartButton.astro';
 
 interface Props { product: Product }
 const { product } = Astro.props;
 ---
-<article>
+<article class="card">
   <a href={`/produits/${product.slug}`}>
+    <img src={productImage(product)} alt={product.name} width="400" height="400" loading="lazy" />
     <h3>{product.name}</h3>
   </a>
-  <p>{formatPrice(product.price)}</p>
+  <p class="price">{formatPrice(product.price)}</p>
+  <AddToCartButton productId={product.id} disabled={product.stock === 0} />
 </article>
+
+<style>
+  .card { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius); }
+  .card a { color: inherit; text-decoration: none; }
+  .card img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); }
+  h3 { margin: 0.25rem 0 0; font-size: 1rem; }
+  .price { margin: 0; font-weight: 700; }
+</style>
