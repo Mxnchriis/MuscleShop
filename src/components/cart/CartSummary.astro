@@ -1,10 +1,14 @@
 ---
 import { formatPrice } from '../../lib/format';
 
-interface Props { total: number }
-const { total } = Astro.props;
+interface Props { total: number; showCheckout?: boolean }
+const { total, showCheckout = true } = Astro.props;
 ---
-<aside>
+<aside class="summary">
   <p>Total : <strong>{formatPrice(total)}</strong></p>
-  <a href="/commande">Passer commande</a>
+  {showCheckout && <a class="btn" href="/commande">Passer commande</a>}
 </aside>
+
+<style>
+  .summary { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 1rem; }
+</style>

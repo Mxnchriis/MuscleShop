@@ -1,0 +1,46 @@
+---
+interface Props { mode: 'login' | 'register'; redirect: string }
+const { mode, redirect } = Astro.props;
+---
+<form class="auth-form form" data-endpoint={`/api/auth/${mode}`} data-redirect={redirect}>
+  {mode === 'register' && (
+    <label>Nom <input name="name" autocomplete="name" required /></label>
+  )}
+  <label>Email <input name="email" type="email" autocomplete="email" required /></label>
+  <label>
+    Mot de passe
+    <input
+      name="password"
+      type="password"
+      minlength="8"
+      autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+      required
+    />
+  </label>
+  <p class="error" role="alert"></p>
+  <button class="btn" type="submit">{mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</button>
+</form>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>('.auth-form').forEach((form) => {
+    const error = form.querySelector<HTMLElement>('.error')!;
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      error.textContent = '';
+      const res = await fetch(form.dataset.endpoint!, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      });
+
+      if (res.ok) {
+        // Le cookie de session (httpOnly) a été posé par l'API
+        window.location.href = form.dataset.redirect!;
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      error.textContent = data.error ?? 'Vérifiez les champs (mot de passe : 8 caractères minimum)';
+    });
+  });
+</script>

@@ -1,7 +1,43 @@
 ---
-import type { CartItem } from '../../types';
+import type { CartLine } from '../../types';
+import { formatPrice } from '../../lib/format';
+import { productImage } from '../../lib/product';
 
-interface Props { item: CartItem }
-const { item } = Astro.props;
+interface Props { line: CartLine }
+const { line } = Astro.props;
+const { product } = line;
 ---
-<li>Produit #{item.productId} × {item.quantity}</li>
+<li class="cart-item" data-product-id={product.id}>
+  <img src={productImage(product)} alt="" width="64" height="64" />
+  <a href={`/produits/${product.slug}`}>{product.name}</a>
+  <input type="number" min="1" max={product.stock} value={line.quantity} aria-label={`Quantité de ${product.name}`} />
+  <span>{formatPrice(line.subtotal)}</span>
+  <button class="link remove" type="button">Retirer</button>
+</li>
+
+<script>
+  // Toute modification passe par l'API puis recharge la page (rendu serveur à jour)
+  async function update(item: HTMLElement, init: RequestInit) {
+    const res = await fetch(`/api/cart/items/${item.dataset.productId}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    });
+    if (!res.ok) alert((await res.json()).error ?? 'Mise à jour impossible');
+    window.location.reload();
+  }
+
+  document.querySelectorAll<HTMLElement>('.cart-item').forEach((item) => {
+    item.querySelector('input')!.addEventListener('change', (event) => {
+      const quantity = Number((event.target as HTMLInputElement).value);
+      update(item, { method: 'PATCH', body: JSON.stringify({ quantity }) });
+    });
+    item.querySelector('.remove')!.addEventListener('click', () => update(item, { method: 'DELETE' }));
+  });
+</script>
+
+<style>
+  .cart-item { display: grid; grid-template-columns: 64px 1fr 4.5rem 6rem auto; align-items: center; gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); }
+  img { border-radius: var(--radius); }
+  input { width: 100%; }
+  @media (max-width: 600px) { .cart-item { grid-template-columns: 48px 1fr auto; } img { width: 48px; height: 48px; } }
+</style>

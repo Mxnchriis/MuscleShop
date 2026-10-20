@@ -1,6 +1,13 @@
 ---
 import ShopLayout from '../../layouts/ShopLayout.astro';
+import AuthForm from '../../components/islands/AuthForm.astro';
+import { safeRedirect } from '../../lib/redirect';
+
+const redirect = safeRedirect(Astro.url.searchParams.get('redirect'));
+if (Astro.locals.user) return Astro.redirect(redirect);
 ---
 <ShopLayout title="Inscription">
   <h1>Inscription</h1>
+  <AuthForm mode="register" redirect={redirect} />
+  <p>Déjà inscrit ? <a href={`/compte/connexion?redirect=${encodeURIComponent(redirect)}`}>Se connecter</a></p>
 </ShopLayout>

@@ -1,17 +1,44 @@
 ---
-interface Props { productId: number }
-const { productId } = Astro.props;
+interface Props { productId: number; disabled?: boolean }
+const { productId, disabled = false } = Astro.props;
 ---
-<button class="add-to-cart" data-product-id={productId}>Ajouter au panier</button>
+<div class="add-to-cart">
+  <button class="btn" data-product-id={productId} disabled={disabled}>
+    {disabled ? 'Rupture de stock' : 'Ajouter au panier'}
+  </button>
+  <span class="feedback" role="status"></span>
+</div>
 
 <script>
-  document.querySelectorAll<HTMLButtonElement>('.add-to-cart').forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>('.add-to-cart button').forEach((button) => {
+    const feedback = button.nextElementSibling as HTMLElement;
+
     button.addEventListener('click', async () => {
-      await fetch('/api/cart/items', {
+      button.disabled = true;
+      const res = await fetch('/api/cart/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId: Number(button.dataset.productId), quantity: 1 }),
       });
+      const data = await res.json();
+      button.disabled = false;
+
+      if (!res.ok) {
+        feedback.textContent = data.error ?? "Impossible d'ajouter ce produit";
+        feedback.dataset.state = 'error';
+        return;
+      }
+      feedback.textContent = 'Ajouté ✓';
+      feedback.dataset.state = 'ok';
+      // Met à jour le compteur du header sans recharger la page
+      document.querySelectorAll('[data-cart-count]').forEach((el) => (el.textContent = String(data.count)));
     });
   });
 </script>
+
+<style>
+  .add-to-cart { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .feedback { font-size: 0.875rem; }
+  .feedback[data-state='ok'] { color: var(--color-success); }
+  .feedback[data-state='error'] { color: var(--color-primary); }
+</style>

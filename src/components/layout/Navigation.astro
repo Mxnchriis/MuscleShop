@@ -1,9 +1,27 @@
+---
+const { user, cartCount } = Astro.locals;
+---
 <nav>
   <a href="/produits">Produits</a>
-  <a href="/panier">Panier</a>
-  <a href="/compte/connexion">Compte</a>
+  <a href="/panier">Panier (<span data-cart-count>{cartCount}</span>)</a>
+  {user ? (
+    <>
+      <a href="/compte/commandes">Mes commandes</a>
+      <button class="link" id="logout" type="button">Déconnexion ({user.name})</button>
+    </>
+  ) : (
+    <a href="/compte/connexion">Connexion</a>
+  )}
 </nav>
 
+<script>
+  document.getElementById('logout')?.addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  });
+</script>
+
 <style>
-  nav { display: flex; gap: 1rem; }
+  nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  nav a { color: inherit; }
 </style>

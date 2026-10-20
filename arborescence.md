@@ -6,7 +6,7 @@
 (`src/pages/api/[...path].ts`) qui délègue chaque requête à `app.fetch()` de Hono.
 
 Pourquoi ce choix plutôt qu'un monorepo (deux apps séparées) :
-- Un seul serveur, un seul `npm run dev`, un seul déploiement : idéal pour un projet de cours.
+- Un seul serveur, un seul `npm run dev`, un seul déploiement : idéal pour des projets rapides.
 - Pas de CORS, front et API partagent le même domaine et les mêmes cookies (panier, session).
 - Les types TypeScript sont partagés directement, et le client RPC de Hono (`hc`) donne un appel d'API typé côté Astro.
 - C'est précisément le point d'étude intéressant pour TechLab : voir jusqu'où les deux outils cohabitent.

@@ -9,3 +9,10 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare namespace App {
+  interface Locals {
+    user: import('./types').SessionUser | null;
+    cartCount: number;
+  }
+}

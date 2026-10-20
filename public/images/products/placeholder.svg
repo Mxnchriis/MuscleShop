@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Image produit indisponible">
+  <rect width="400" height="400" fill="#f3f4f6"/>
+  <!-- Pot de complément -->
+  <rect x="140" y="92" width="120" height="34" rx="8" fill="#9ca3af"/>
+  <rect x="124" y="122" width="152" height="186" rx="18" fill="#d1d5db"/>
+  <rect x="124" y="170" width="152" height="80" fill="#e63946" opacity="0.85"/>
+  <text x="200" y="217" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#ffffff">MUSCLE</text>
+  <text x="200" y="354" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" fill="#6b7280">Photo à venir</text>
+</svg>

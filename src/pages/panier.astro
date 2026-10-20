@@ -1,8 +1,26 @@
 ---
 import ShopLayout from '../layouts/ShopLayout.astro';
+import CartItem from '../components/cart/CartItem.astro';
 import CartSummary from '../components/cart/CartSummary.astro';
+import { createApi } from '../lib/api';
+
+const api = createApi(Astro.request);
+const cart = await (await api.api.cart.$get()).json();
 ---
 <ShopLayout title="Panier">
   <h1>Panier</h1>
-  <CartSummary total={0} />
+  {cart.lines.length === 0 ? (
+    <p>Votre panier est vide. <a href="/produits">Voir le catalogue</a></p>
+  ) : (
+    <>
+      <ul class="cart">
+        {cart.lines.map((line) => <CartItem line={line} />)}
+      </ul>
+      <CartSummary total={cart.total} />
+    </>
+  )}
 </ShopLayout>
+
+<style>
+  .cart { list-style: none; padding: 0; margin: 0; }
+</style>

@@ -6,3 +6,4 @@ dist/
 *.db-journal
 test-results/
 playwright-report/
+documentation/

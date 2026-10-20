@@ -1,6 +1,38 @@
 ---
 import ShopLayout from '../../layouts/ShopLayout.astro';
+import { createApi } from '../../lib/api';
+import { formatPrice } from '../../lib/format';
+import { loginUrl } from '../../lib/redirect';
+
+if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
+
+const api = createApi(Astro.request);
+const { items: orders } = await (await api.api.orders.$get()).json();
+const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+const statusLabels = { pending: 'En attente de paiement', paid: 'Payée', shipped: 'Expédiée', cancelled: 'Annulée' };
 ---
 <ShopLayout title="Mes commandes">
   <h1>Mes commandes</h1>
+  {orders.length === 0 ? (
+    <p>Aucune commande pour l'instant. <a href="/produits">Voir le catalogue</a></p>
+  ) : (
+    <table>
+      <thead><tr><th>N°</th><th>Date</th><th>Statut</th><th>Total</th></tr></thead>
+      <tbody>
+        {orders.map((order) => (
+          <tr>
+            <td><a href={`/commande/confirmation?id=${order.id}`}>{order.id}</a></td>
+            <td>{dateFormatter.format(new Date(order.createdAt))}</td>
+            <td>{statusLabels[order.status]}</td>
+            <td>{formatPrice(order.total)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
 </ShopLayout>
+
+<style>
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--color-border); }
+</style>
