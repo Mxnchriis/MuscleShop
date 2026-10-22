@@ -7,7 +7,7 @@ import { loginUrl } from '../../lib/redirect';
 
 if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
 
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 const { items: orders } = await (await api.api.orders.$get()).json();
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
 const MAX_PRODUCTS = 2; // au-delà, on affiche « … » (liste complète au survol)

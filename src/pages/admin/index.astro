@@ -1,0 +1,89 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import StatTile from '../../components/admin/StatTile.astro';
+import AdminChart from '../../components/admin/AdminChart.astro';
+import { createApi } from '../../lib/api';
+import { formatPrice } from '../../lib/format';
+import { formatDateTime, formatInt, orderStatus } from '../../lib/admin';
+
+// Accès vérifié par le middleware Astro (rôle admin), puis à nouveau par l'API (requireAdmin)
+const api = createApi(Astro);
+const res = await api.api.admin.stats.$get();
+if (!res.ok) return new Response('Accès refusé', { status: res.status });
+const stats = await res.json();
+
+const dayLabel = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const totalOrders = Object.values(stats.ordersByStatus).reduce((sum, n) => sum + (n ?? 0), 0);
+---
+<AdminLayout title="Tableau de bord" subtitle="Ventes, stocks et dernières commandes">
+  <div class="tiles">
+    <StatTile label="Chiffre d'affaires" value={formatPrice(stats.revenue)} hint="Commandes payées et expédiées" />
+    <StatTile label="Commandes payées" value={formatInt(stats.paidOrders)} hint={`${formatInt(totalOrders)} commandes au total`} />
+    <StatTile label="Panier moyen" value={formatPrice(stats.averageBasket)} />
+    <StatTile label="Clients" value={formatInt(stats.customers)} />
+    <StatTile label="Produits en rupture" value={formatInt(stats.stock.outOfStock)} hint={`sur ${stats.stock.products} produits`} />
+    <StatTile label="Stock bas (≤ 10)" value={formatInt(stats.stock.lowStock)} hint={`${formatInt(stats.stock.units)} unités en stock`} />
+  </div>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-header">
+        <h2>Chiffre d'affaires par jour</h2>
+        <p>14 derniers jours</p>
+      </div>
+      <AdminChart
+        kind="column"
+        title="Chiffre d'affaires par jour sur les 14 derniers jours"
+        labels={stats.salesByDay.map((d) => dayLabel.format(new Date(d.day)))}
+        series={[{ name: "Chiffre d'affaires", color: 'var(--series-1)', values: stats.salesByDay.map((d) => d.revenue) }]}
+        format="eur"
+      />
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Meilleures ventes</h2>
+        <a href="/admin/stocks">Voir les stocks →</a>
+      </div>
+      {stats.topProducts.length === 0 ? (
+        <p class="hint">Aucune vente pour l'instant.</p>
+      ) : (
+        <table class="data">
+          <thead><tr><th>Produit</th><th class="num">Vendus</th><th class="num">CA</th></tr></thead>
+          <tbody>
+            {stats.topProducts.map((product) => (
+              <tr>
+                <td><a href={`/produits/${product.slug}`}>{product.name}</a></td>
+                <td class="num">{formatInt(product.sold)}</td>
+                <td class="num">{formatPrice(product.revenue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <h2>Dernières commandes</h2>
+      <a href="/admin/commandes">Tout l'historique →</a>
+    </div>
+    <div class="table-scroll">
+      <table class="data">
+        <thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Statut</th><th class="num">Total</th></tr></thead>
+        <tbody>
+          {stats.recentOrders.map((order) => (
+            <tr>
+              <td>{order.id}</td>
+              <td class="muted">{formatDateTime(order.createdAt)}</td>
+              <td>{order.customerName} <span class="muted">{order.customerEmail}</span></td>
+              <td><span class={orderStatus[order.status].className}>{orderStatus[order.status].label}</span></td>
+              <td class="num">{formatPrice(order.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</AdminLayout>

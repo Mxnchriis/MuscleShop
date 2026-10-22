@@ -14,5 +14,7 @@ declare namespace App {
   interface Locals {
     user: import('./types').SessionUser | null;
     cartCount: number;
+    // Mesures de la page en cours : appels Hono internes faits par createApi (src/lib/api.ts)
+    perf: { apiCalls: number; intervals: [number, number][] };
   }
 }

@@ -25,6 +25,9 @@ async function verifyPassword(password: string, stored: string) {
   return timingSafeEqual(hash, Buffer.from(hex, 'hex'));
 }
 
+// Colonnes exposées comme « utilisateur connecté » (jamais le hash du mot de passe)
+const sessionColumns = { id: users.id, email: users.email, name: users.name, role: users.role };
+
 export async function registerUser(input: { email: string; password: string; name: string }): Promise<SessionUser | null> {
   const existing = db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).get();
   if (existing) return null;
@@ -33,14 +36,14 @@ export async function registerUser(input: { email: string; password: string; nam
   return db
     .insert(users)
     .values({ email: input.email, name: input.name, passwordHash })
-    .returning({ id: users.id, email: users.email, name: users.name })
+    .returning(sessionColumns)
     .get();
 }
 
 export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
   const user = db.select().from(users).where(eq(users.email, email)).get();
   if (!user || !(await verifyPassword(password, user.passwordHash))) return null;
-  return { id: user.id, email: user.email, name: user.name };
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
 }
 
 export function createSessionToken(user: SessionUser) {
@@ -48,13 +51,22 @@ export function createSessionToken(user: SessionUser) {
   return sign({ sub: user.id, email: user.email, name: user.name, exp }, env.JWT_SECRET, 'HS256');
 }
 
-// Renvoie null si le jeton est absent, expiré ou falsifié
-export async function readSessionToken(token: string | undefined): Promise<SessionUser | null> {
+// Identifiant de l'utilisateur, ou null si le jeton est absent, expiré ou falsifié
+async function readSessionToken(token: string | undefined): Promise<number | null> {
   if (!token) return null;
   try {
     const payload = await verify(token, env.JWT_SECRET, 'HS256');
-    return { id: Number(payload.sub), email: String(payload.email), name: String(payload.name) };
+    return Number(payload.sub);
   } catch {
     return null;
   }
+}
+
+// Utilisateur de la session : JWT vérifié, puis utilisateur relu en base.
+// Le rôle n'est donc pas figé dans le jeton : retirer les droits admin prend effet immédiatement,
+// et un compte supprimé n'a plus de session valide.
+export async function getSessionUser(token: string | undefined): Promise<SessionUser | null> {
+  const id = await readSessionToken(token);
+  if (id === null) return null;
+  return db.select(sessionColumns).from(users).where(eq(users.id, id)).get() ?? null;
 }

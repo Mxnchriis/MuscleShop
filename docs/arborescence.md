@@ -55,10 +55,15 @@ muscle-shop/
 │   │   │   ├── connexion.astro
 │   │   │   ├── inscription.astro
 │   │   │   └── commandes.astro       # Mes commandes : payer, annuler, recommander
+│   │   ├── admin/                    # Espace admin (rôle admin, vérifié par le middleware Astro)
+│   │   │   ├── index.astro           # Tableau de bord : CA, commandes, stocks
+│   │   │   ├── stocks.astro          # Stocks modifiables
+│   │   │   ├── commandes.astro       # Historique, filtres, « Marquer expédiée »
+│   │   │   └── performance.astro     # Mesures Astro / Hono en direct, benchmark
 │   │   └── api/
 │   │       └── [...path].ts          # ★ Point de jonction : toute requête /api/* passe à Hono
 │   │
-│   ├── middleware.ts         # Middleware Astro : session et taille du panier → Astro.locals
+│   ├── middleware.ts         # Middleware Astro : session, panier, accès /admin, chronométrage des pages
 │   │
 │   ├── server/               # HONO : tout le back-end, indépendant d'Astro
 │   │   ├── app.ts                    # Instance Hono, basePath('/api'), montage des routes, type AppType
@@ -70,7 +75,8 @@ muscle-shop/
 │   │   │   ├── orders.ts             # Commander, payer, annuler, recommander
 │   │   │   └── auth.ts               # Inscription, connexion, déconnexion, /me
 │   │   ├── middlewares/
-│   │   │   ├── auth.ts               # requireAuth : vérifie le JWT
+│   │   │   ├── auth.ts               # requireAuth, requireAdmin : JWT + utilisateur relu en base
+│   │   │   ├── metrics.ts            # Chronomètre chaque appel d'API (Server-Timing)
 │   │   │   └── error-handler.ts      # Erreurs → JSON { error }
 │   │   ├── validators/               # Schémas Zod (produits, panier, auth)
 │   │   ├── services/                 # Logique métier, testable seule
@@ -78,24 +84,30 @@ muscle-shop/
 │   │   │   ├── cart.ts               # Lecture et écriture du cookie, calcul du panier
 │   │   │   ├── auth.ts               # scrypt, JWT
 │   │   │   ├── orders.ts             # Commandes, statut, stock
-│   │   │   └── payment.ts            # Seul fichier qui parle à Stripe
+│   │   │   ├── payment.ts            # Seul fichier qui parle à Stripe
+│   │   │   ├── admin.ts              # Tableau de bord, stocks, historique, expédition
+│   │   │   ├── metrics.ts            # Mesures en mémoire, partagées par Astro et Hono
+│   │   │   ├── system.ts             # Mémoire, CPU, boucle d'événements, base, versions
+│   │   │   └── benchmark.ts          # Appel interne contre HTTP, cibles autorisées
 │   │   └── db/
 │   │       ├── schema.ts             # Tables : categories, products, users, orders, order_items
 │   │       ├── client.ts             # Connexion Drizzle + SQLite
-│   │       └── seed.ts               # 7 catégories, 28 produits (relançable)
+│   │       ├── seed.ts               # 7 catégories, 28 produits (relançable)
+│   │       └── set-role.ts           # npm run admin:promote / admin:demote
 │   │
 │   ├── components/           # Composants Astro réutilisables
 │   │   ├── layout/                   # Header, Navigation, Footer
 │   │   ├── home/                     # CategoryGrid (grille décalée), ProductSection
 │   │   ├── product/                  # ProductCard (badge promo), ProductGrid, NutritionTable
 │   │   ├── cart/                     # CartItem, CartSummary
+│   │   ├── admin/                    # StatTile, AdminChart, perf-dashboard.ts
 │   │   └── islands/                  # Seuls composants avec du JS navigateur
 │   │       ├── AddToCartButton.astro
 │   │       ├── AuthForm.astro
 │   │       └── OrderActions.astro
 │   │
-│   ├── layouts/              # Gabarits de page (BaseLayout, ShopLayout)
-│   ├── lib/                  # Côté front : client RPC (api.ts), prix, images, redirections sûres
+│   ├── layouts/              # Gabarits de page (BaseLayout, ShopLayout, AdminLayout)
+│   ├── lib/                  # Côté front : client RPC (api.ts), prix, images, redirections, graphiques SVG (charts.ts)
 │   ├── types/                # Types communs front/back (Product, Cart, Order, SessionUser…)
 │   ├── styles/               # CSS global : variables de thème, .btn, .btn-secondary, formulaires
 │   └── env.d.ts              # Types des variables d'env et de Astro.locals
@@ -105,7 +117,9 @@ muscle-shop/
     │   ├── setup.ts                  # Recrée test.db avant les tests
     │   ├── health.test.ts
     │   ├── catalog.test.ts
-    │   └── shop.test.ts              # Panier, auth, commandes (Stripe simulé)
+    │   ├── shop.test.ts              # Panier, auth, commandes (Stripe simulé)
+    │   ├── admin.test.ts             # Accès admin, stocks, expédition, métriques, benchmark
+    │   └── helpers.ts                # Client de test qui conserve les cookies
     └── e2e/                  # Parcours utilisateur (Playwright)
 ```
 

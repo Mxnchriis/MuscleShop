@@ -90,6 +90,16 @@ Aucune route ni aucune page n'est à réécrire.
 
 Le middleware Astro (`src/middleware.ts`), qui donne aux pages l'utilisateur connecté et la taille du panier, et le middleware Hono (`requireAuth`) réutilisent les mêmes fonctions de `src/server/services/`. La vérification du JWT n'est écrite qu'une fois.
 
+### 7. Une instrumentation commune, sans outil externe
+
+Comme Astro et Hono partagent le processus, leurs deux middlewares alimentent **le même module de mesures en mémoire** (`src/server/services/metrics.ts`) :
+
+- le middleware Astro chronomètre les pages, par gabarit `Astro.routePattern` ;
+- le middleware Hono chronomètre les routes, par gabarit `routePath()` ;
+- le client RPC compte les appels internes faits pendant le rendu.
+
+On obtient, pour chaque page, la part du temps passée dans Hono et celle passée dans Astro. L'en-tête standard `Server-Timing` expose ces durées dans les outils de développement du navigateur. Le panel admin (`/admin/performance`) affiche le tout en direct, avec un benchmark intégré. Aucun service externe (APM, OpenTelemetry) n'a été nécessaire.
+
 ## Limites observées
 
 ### 1. Variables d'environnement : une friction liée à Vite
@@ -118,6 +128,10 @@ L'API impose `output: 'server'` : toutes les pages sont rendues à la demande. L
 ### 6. Protection CSRF d'Astro
 
 Astro bloque les `POST` sans en-tête `Origin` correspondant. C'est une bonne chose en production, mais déroutant lors des tests manuels avec `curl` : le message « Cross-site POST form submissions are forbidden » vient d'Astro, pas de Hono. Il n'apparaît pas avec `app.request()` dans les tests, qui ne passent pas par Astro.
+
+### 7. Mesures en mémoire, propres à un processus
+
+Les mesures du panel vivent en mémoire : elles disparaissent au redémarrage, et ne seraient pas agrégées si l'application tournait sur plusieurs processus ou serveurs. Pour la production réelle, il faudrait les exporter (OpenTelemetry, Prometheus). L'en-tête `Server-Timing` et le découpage par gabarit de route resteraient utiles.
 
 ## Benchmarks
 
@@ -166,15 +180,46 @@ Seule différence entre les deux builds : l'option `fetch: app.request` du clien
 
 | Indicateur | Valeur |
 | --- | --- |
-| Nombre de tests de l'API | 38 |
-| Durée totale de `npm test` | 3,5 s |
+| Nombre de tests de l'API | 51 (38 lors de la première mesure) |
+| Durée totale de `npm test` | 3,8 s |
 | Dont exécution des tests | ≈ 44 % |
 | Dont préparation (recréation de `test.db`, import, transformation) | ≈ 56 % |
 | Serveur HTTP démarré | aucun |
 
+### 5. Mesures du panel de performance (build de production)
+
+**Contexte :** mesures prises le 22/10/2026 avec le panel `/admin/performance` (`npm start`, `NODE_ENV=production`), sur environ 400 requêtes de navigation, puis avec le benchmark intégré (300 requêtes en série par mode, après 5 d'échauffement).
+
+**Benchmark : la même route appelée en interne (Hono seul) et en HTTP (Node → Astro → Hono)**
+
+| Cible | Mode | Médiane | p95 | Débit (en série) |
+| --- | --- | --- | --- | --- |
+| `GET /api/health` | Interne | 0,04 ms | 0,07 ms | 23 801 req/s |
+| | HTTP | 0,67 ms | 1,02 ms | 1 395 req/s |
+| `GET /api/products` (28 produits) | Interne | 0,36 ms | 0,60 ms | 2 507 req/s |
+| | HTTP | 1,00 ms | 2,08 ms | 870 req/s |
+| Page d'accueil (4 appels API) | HTTP | 2,08 ms | 3,29 ms | 438 req/s |
+
+**Surcoût d'Astro sur `/api`** (durée totale mesurée par Astro moins la durée annoncée par Hono, 51 appels) : médiane **0,08 ms**, moyenne 0,15 ms, p95 0,19 ms.
+
+**Répartition du temps des pages** (moyennes) :
+
+| Page | Appels API | Temps Hono | Temps Astro | Part de Hono |
+| --- | --- | --- | --- | --- |
+| `/` | 4 | 2,22 ms | 0,83 ms | 73 % |
+| `/categories/[slug]` | 1 | 0,84 ms | 0,51 ms | 62 % |
+| `/produits` | 1 | 0,77 ms | 0,57 ms | 57 % |
+| `/produits/[slug]` | 1 | 0,52 ms | 0,45 ms | 54 % |
+
+**Lecture :**
+
+- **Ce n'est pas Astro qui coûte cher.** Sur `/api/health`, l'appel HTTP prend environ 0,63 ms de plus que l'appel interne, mais seulement 0,08 à 0,15 ms viennent d'Astro (middleware et route attrape-tout). Le reste, environ 0,5 ms, est le coût de la pile HTTP de Node et de l'aller-retour local. Monter Hono derrière Astro est donc presque gratuit. C'est l'appel HTTP qui coûte, d'où l'intérêt de `app.request` pour les pages.
+- **Le rendu Astro est léger.** Sur toutes les pages, le temps est dominé par Hono, c'est-à-dire par les requêtes SQLite, et non par la génération du HTML. Pour accélérer l'accueil, il faudrait d'abord optimiser ou mettre en cache ses 4 appels API.
+- **Hono seul est extrêmement rapide** : 0,04 ms pour une route sans base. Le framework est négligeable devant le moindre accès aux données.
+
 ### À compléter
 
-- [ ] Répéter les mesures (plusieurs séries) et indiquer l'écart-type.
+- [ ] Répéter les mesures (plusieurs séries) et indiquer l'écart-type. Le benchmark du panel admin permet de les relancer en un clic.
 - [ ] Comparer avec une API Hono séparée (`@hono/node-server`) appelée en HTTP : c'est le coût réel du monorepo.
 - [ ] Mesurer le temps de démarrage à froid (`npm start` jusqu'à la première réponse).
 - [ ] Lighthouse sur l'accueil et le catalogue (performance, accessibilité).
@@ -219,3 +264,5 @@ Astro et Hono se combinent avec **très peu de friction**, parce qu'ils reposent
 Les principaux points d'attention sont la gestion des variables d'environnement hors de Vite, la transmission explicite des cookies dans les appels internes, et l'obligation de rendu serveur.
 
 Choisir l'appel interne (`app.request`) plutôt que HTTP pour les pages est la décision qui pèse le plus sur les performances : **jusqu'à 1,8 fois plus rapide** sur l'accueil, sans sacrifier la possibilité d'extraire l'API plus tard.
+
+Les mesures fines du panel de performance le confirment : le surcoût propre à Astro autour de Hono est inférieur à 0,2 ms. Le temps des pages est dominé par l'accès aux données, pas par l'un ou l'autre framework.

@@ -23,6 +23,7 @@ export const users = sqliteTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull(),
+  role: text('role', { enum: ['customer', 'admin'] }).notNull().default('customer'),
 });
 
 export const orders = sqliteTable('orders', {

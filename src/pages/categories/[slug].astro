@@ -4,7 +4,7 @@ import ProductGrid from '../../components/product/ProductGrid.astro';
 import { createApi } from '../../lib/api';
 
 const slug = Astro.params.slug!;
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 
 const res = await api.api.categories[':slug'].$get({ param: { slug } });
 if (!res.ok) return new Response('Catégorie introuvable', { status: 404 });

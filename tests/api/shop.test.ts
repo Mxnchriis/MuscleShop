@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import app from '../../src/server/app';
+import { createClient } from './helpers';
 
 // Stripe simulé : pas d'appel réseau, et on choisit le résultat du paiement dans chaque test
 const stripe = vi.hoisted(() => ({ paid: false, expired: false, expiredSessions: [] as string[], sessions: 0 }));
@@ -11,28 +12,6 @@ vi.mock('../../src/server/services/payment', () => ({
   getCheckoutStatus: async () => ({ paid: stripe.paid, expired: stripe.expired }),
   expireCheckoutSession: async (id: string) => void stripe.expiredSessions.push(id),
 }));
-
-// Simule un navigateur : renvoie les cookies reçus à chaque requête
-function createClient() {
-  const jar = new Map<string, string>();
-  return async (path: string, init: { method?: string; body?: unknown } = {}) => {
-    const res = await app.request(path, {
-      method: init.method ?? 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        cookie: [...jar].map(([name, value]) => `${name}=${value}`).join('; '),
-      },
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    });
-    for (const header of res.headers.getSetCookie()) {
-      const [pair] = header.split(';');
-      const [name, value] = pair.split('=');
-      if (header.includes('Max-Age=0')) jar.delete(name);
-      else jar.set(name, value);
-    }
-    return res;
-  };
-}
 
 const credentials = { email: `test-${Date.now()}@muscleshop.fr`, password: 'motdepasse', name: 'Testeur' };
 

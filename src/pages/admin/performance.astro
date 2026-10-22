@@ -1,0 +1,141 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { createApi } from '../../lib/api';
+
+// Premier affichage rendu côté serveur (pas d'écran vide), puis l'îlot rafraîchit toutes les 5 s
+const api = createApi(Astro);
+const [metricsRes, targetsRes] = await Promise.all([
+  api.api.admin.metrics.$get({ query: {} }),
+  api.api.admin.benchmark.targets.$get(),
+]);
+if (!metricsRes.ok || !targetsRes.ok) return new Response('Accès refusé', { status: 403 });
+const initial = await metricsRes.json();
+const { items: targets } = await targetsRes.json();
+---
+<AdminLayout title="Performance" subtitle="Mesures en direct des pages Astro et de l'API Hono, dans le même processus Node">
+  <div class="perf" data-perf data-initial={JSON.stringify(initial)} data-targets={JSON.stringify(targets)}>
+    <div class="filters">
+      <label>Fenêtre
+        <select data-window>
+          <option value="15">15 min</option>
+          <option value="30" selected>30 min</option>
+          <option value="60">1 h</option>
+          <option value="180">3 h</option>
+        </select>
+      </label>
+      <label class="toggle"><input type="checkbox" data-auto checked /> Actualisation auto (5 s)</label>
+      <button class="btn btn-secondary btn-small" type="button" data-refresh>Actualiser</button>
+      <button class="btn btn-secondary btn-small" type="button" data-reset>Réinitialiser les mesures</button>
+      <span class="hint" data-updated></span>
+    </div>
+
+    <p class="notice" data-mode hidden>
+      <span class="status status-warning">Mode développement</span>
+      Vite compile le code à la volée : les temps sont plus élevés qu'en production.
+      Pour des mesures fiables : <code>npm run build && npm start</code>.
+    </p>
+
+    <div class="tiles" data-tiles></div>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="card-header"><h2>Requêtes par minute</h2><p>par source</p></div>
+        <div class="chart" data-chart-requests></div>
+      </section>
+      <section class="card">
+        <div class="card-header"><h2>Latence p95 par minute</h2><p>95 % des requêtes sont plus rapides</p></div>
+        <div class="chart" data-chart-latency></div>
+      </section>
+    </div>
+
+    <section class="card section">
+      <div class="card-header">
+        <h2>Pages : temps Astro et temps Hono</h2>
+        <p>Pendant le rendu, une page appelle Hono via le client RPC (<code>app.request</code>, sans réseau)</p>
+      </div>
+      <div class="chart-legend">
+        <span class="chart-legend-item"><span class="chart-key" style="background: var(--series-3)"></span>Hono (appels API internes)</span>
+        <span class="chart-legend-item"><span class="chart-key" style="background: var(--series-1)"></span>Astro (middleware, rendu HTML)</span>
+      </div>
+      <div data-split></div>
+    </section>
+
+    <section class="card section">
+      <div class="card-header"><h2>Toutes les routes</h2><p>Gabarits de route : <code>/produits/[slug]</code> (Astro), <code>/api/products/:slug</code> (Hono)</p></div>
+      <div data-routes></div>
+    </section>
+
+    <section class="card section">
+      <div class="card-header">
+        <h2>Benchmark : appel interne contre HTTP</h2>
+        <p>Les requêtes du benchmark ne sont pas comptées dans les mesures ci-dessus</p>
+      </div>
+      <form class="filters" data-bench-form>
+        <select name="target" aria-label="Cible"></select>
+        <label>Requêtes <input type="number" name="iterations" min="10" max="500" value="200" /></label>
+        <button class="btn btn-small" type="submit">Lancer</button>
+      </form>
+      <div data-bench-results>
+        <p class="hint">
+          Une route d'API est mesurée deux fois : appelée directement dans le processus (Hono seul),
+          puis en HTTP comme un visiteur (pile HTTP de Node → Astro → Hono). Une page n'est mesurée qu'en HTTP.
+        </p>
+      </div>
+    </section>
+
+    <section class="card section">
+      <div class="card-header"><h2>Requêtes les plus lentes</h2><p>dans la fenêtre</p></div>
+      <div data-slowest></div>
+    </section>
+    <section class="card section">
+      <div class="card-header"><h2>Dernières requêtes</h2></div>
+      <div data-latest></div>
+    </section>
+
+    <h2 class="section-title">Serveur</h2>
+    <div class="system" data-system></div>
+
+    <details class="card explain">
+      <summary>Comment lire ces mesures</summary>
+      <ul>
+        <li><strong>Page Astro</strong> : chronométrée par le middleware Astro (<code>src/middleware.ts</code>), du début de la requête à la réponse. Elle inclut les appels internes à Hono faits pendant le rendu.</li>
+        <li><strong>API · interne</strong> : appel de Hono par une page via le client RPC et <code>app.request()</code>, sans réseau. Chronométré par le middleware Hono (<code>src/server/middlewares/metrics.ts</code>).</li>
+        <li><strong>API · HTTP</strong> : appel venu du navigateur (bouton panier, connexion…), qui traverse la pile HTTP de Node puis Astro avant d'atteindre Hono.</li>
+        <li><strong>Surcoût Astro sur /api</strong> : pour un appel HTTP, temps total mesuré par Astro moins le temps annoncé par Hono. C'est le prix de la route attrape-tout <code>/api/[...path].ts</code> et du middleware Astro.</li>
+        <li><strong>p50 / p95 / p99</strong> : 50 %, 95 % ou 99 % des requêtes sont plus rapides que cette valeur. Le p95 montre ce que vivent les utilisateurs les moins chanceux, mieux que la moyenne.</li>
+        <li><strong>En-tête Server-Timing</strong> : chaque réponse l'expose. Dans le navigateur, onglet Réseau, puis une requête, puis Timing : on y voit <code>astro</code>, <code>api</code> et <code>hono</code>.</li>
+        <li>Les mesures sont gardées en mémoire (10 000 au plus) et repartent de zéro à chaque redémarrage du serveur.</li>
+      </ul>
+    </details>
+  </div>
+</AdminLayout>
+
+<script>
+  import { initPerfDashboard } from '../../components/admin/perf-dashboard';
+
+  const root = document.querySelector<HTMLElement>('[data-perf]')!;
+  initPerfDashboard(root, JSON.parse(root.dataset.initial!), JSON.parse(root.dataset.targets!));
+</script>
+
+<style>
+  .perf { transition: opacity 0.2s; }
+  .perf:global(.is-loading) [data-tiles], .perf:global(.is-loading) .chart { opacity: 0.6; }
+  .toggle { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .filters label { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--ink-2); font-size: 0.9rem; }
+  .notice { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 0.6rem 0.9rem; background: #fff8e6; border: 1px solid #f5dfa6; border-radius: var(--radius); font-size: 0.9rem; }
+  .section { margin-bottom: 1rem; }
+  .section-title { margin-top: 2rem; }
+  .system { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .system :global(.facts) { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: 0.35rem 1rem; margin: 0; font-size: 0.875rem; }
+  .system :global(dt) { color: var(--ink-2); }
+  .system :global(dd) { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: break-word; min-width: 0; }
+  .perf :global(.source) { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+  .perf :global(.split-cell) { display: flex; align-items: center; gap: 0.5rem; min-width: 9rem; font-size: 0.8rem; color: var(--ink-2); }
+  .perf :global(.split-bar) { display: flex; gap: 2px; flex: 1; height: 0.6rem; }
+  .perf :global(.split-bar span) { height: 100%; border-radius: 2px; }
+  .perf :global(.bench-track) { min-width: 8rem; }
+  .perf :global(.bench-bar) { display: block; height: 0.6rem; border-radius: 0 4px 4px 0; }
+  .perf :global(.bench-conclusion) { margin: 0.75rem 0 0; font-size: 0.9rem; }
+  .explain summary { cursor: pointer; font-weight: 600; }
+  .explain li { margin: 0.4rem 0; color: var(--ink-2); }
+</style>

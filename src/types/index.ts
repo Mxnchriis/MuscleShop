@@ -33,11 +33,14 @@ export interface Cart {
   count: number; // nombre d'articles
 }
 
-// Contenu du JWT de session
+export type UserRole = 'customer' | 'admin';
+
+// Utilisateur connecté : identifié par le JWT, rôle relu en base à chaque requête
 export interface SessionUser {
   id: number;
   email: string;
   name: string;
+  role: UserRole;
 }
 
 export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'cancelled';

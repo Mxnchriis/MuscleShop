@@ -1,0 +1,99 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import StatTile from '../../components/admin/StatTile.astro';
+import { createApi } from '../../lib/api';
+import { formatPrice } from '../../lib/format';
+import { formatInt, stockStatus } from '../../lib/admin';
+
+const api = createApi(Astro);
+const res = await api.api.admin.products.$get();
+if (!res.ok) return new Response('Accès refusé', { status: res.status });
+const { items } = await res.json();
+
+const filters = [
+  { value: 'all', label: 'Tous' },
+  { value: 'out', label: 'Rupture' },
+  { value: 'low', label: 'Stock bas' },
+] as const;
+const filter = filters.find((f) => f.value === Astro.url.searchParams.get('filtre'))?.value ?? 'all';
+const visible = items.filter((p) => (filter === 'out' ? p.stock === 0 : filter === 'low' ? p.stock > 0 && p.stock <= 10 : true));
+---
+<AdminLayout title="Stocks" subtitle="Du stock le plus faible au plus élevé. Les ventes comptent les commandes payées et expédiées.">
+  <div class="tiles">
+    <StatTile label="Produits" value={formatInt(items.length)} />
+    <StatTile label="En rupture" value={formatInt(items.filter((p) => p.stock === 0).length)} />
+    <StatTile label="Stock bas (≤ 10)" value={formatInt(items.filter((p) => p.stock > 0 && p.stock <= 10).length)} />
+    <StatTile label="Unités en stock" value={formatInt(items.reduce((sum, p) => sum + p.stock, 0))} />
+  </div>
+
+  <div class="filters">
+    {filters.map((f) => (
+      <a class="pill" href={f.value === 'all' ? '/admin/stocks' : `/admin/stocks?filtre=${f.value}`} aria-current={filter === f.value ? 'true' : undefined}>{f.label}</a>
+    ))}
+  </div>
+
+  <section class="card table-scroll">
+    <table class="data">
+      <thead>
+        <tr><th>Produit</th><th>Catégorie</th><th class="num">Prix</th><th class="num">Vendus</th><th>État</th><th>Stock</th></tr>
+      </thead>
+      <tbody>
+        {visible.map((product) => {
+          const status = stockStatus(product.stock);
+          return (
+            <tr>
+              <td><a href={`/produits/${product.slug}`}>{product.name}</a></td>
+              <td class="muted">{product.categoryName}</td>
+              <td class="num">{formatPrice(product.price)}</td>
+              <td class="num">{formatInt(product.sold)}</td>
+              <td><span class={status.className} data-stock-status>{status.label}</span></td>
+              <td>
+                <form class="stock-form" data-product-id={product.id}>
+                  <input type="number" name="stock" min="0" max="100000" value={product.stock} aria-label={`Stock de ${product.name}`} required />
+                  <button class="btn btn-secondary btn-small" type="submit">Enregistrer</button>
+                  <span class="feedback" role="status"></span>
+                </form>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+    {visible.length === 0 && <p class="hint">Aucun produit dans ce filtre.</p>}
+  </section>
+</AdminLayout>
+
+<script>
+  import { stockStatus } from '../../lib/admin';
+
+  // Îlot : enregistre le stock d'une ligne sans recharger la page
+  document.querySelectorAll<HTMLFormElement>('.stock-form').forEach((form) => {
+    const feedback = form.querySelector<HTMLElement>('.feedback')!;
+    const badge = form.closest('tr')!.querySelector<HTMLElement>('[data-stock-status]')!;
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const stock = Number(new FormData(form).get('stock'));
+      const res = await fetch(`/api/admin/products/${form.dataset.productId}/stock`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock }),
+      });
+      if (!res.ok) {
+        feedback.textContent = (await res.json().catch(() => ({}))).error ?? 'Valeur invalide';
+        return;
+      }
+      const status = stockStatus(stock);
+      badge.className = status.className;
+      badge.textContent = status.label;
+      feedback.textContent = 'Enregistré ✓';
+      setTimeout(() => (feedback.textContent = ''), 2000);
+    });
+  });
+</script>
+
+<style>
+  .stock-form { display: flex; align-items: center; gap: 0.5rem; }
+  .stock-form input { width: 6rem; padding: 0.35rem 0.5rem; }
+  .feedback { font-size: 0.8rem; color: var(--ink-2); white-space: nowrap; }
+</style>

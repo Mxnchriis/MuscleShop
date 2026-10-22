@@ -1,0 +1,26 @@
+---
+import type { ChartFormat } from '../../lib/admin';
+
+// Îlot : les données sont rendues par le serveur dans un attribut, le dessin se fait dans le navigateur
+interface Props {
+  kind: 'column' | 'line';
+  title: string;
+  labels: string[];
+  series: { name: string; color: string; values: number[] }[];
+  format: ChartFormat;
+  stacked?: boolean;
+  height?: number;
+}
+const props = Astro.props;
+---
+<div class="chart" data-chart={JSON.stringify(props)}></div>
+
+<script>
+  import { renderChart } from '../../lib/charts';
+  import { chartFormats, type ChartFormat } from '../../lib/admin';
+
+  document.querySelectorAll<HTMLElement>('[data-chart]').forEach((root) => {
+    const { format, ...options } = JSON.parse(root.dataset.chart!);
+    renderChart(root, { ...options, format: chartFormats[format as ChartFormat] });
+  });
+</script>

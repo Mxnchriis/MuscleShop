@@ -4,7 +4,7 @@ import CategoryGrid from '../components/home/CategoryGrid.astro';
 import ProductSection from '../components/home/ProductSection.astro';
 import { createApi } from '../lib/api';
 
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 const products = api.api.products;
 
 // Les 4 appels partent en parallèle (dans le même processus, sans réseau)

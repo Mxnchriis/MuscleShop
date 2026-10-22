@@ -7,7 +7,7 @@ if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
 
 // Retour de Stripe après "Retour" sur la page de paiement : la commande en attente est annulée
 const id = Astro.url.searchParams.get('id') ?? '';
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 await api.api.orders[':id'].cancel.$post({ param: { id } });
 ---
 <ShopLayout title="Paiement annulé">

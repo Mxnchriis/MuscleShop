@@ -112,9 +112,8 @@ function setStatus(orderId: number, status: 'cancelled') {
   db.update(orders).set({ status }).where(and(eq(orders.id, orderId), eq(orders.status, 'pending'))).run();
 }
 
-// Commandes de l'utilisateur avec leurs produits (2 requêtes, quel que soit le nombre de commandes)
-export function listOrders(userId: number) {
-  const list = db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.id)).all();
+// Ajoute à chaque commande la liste de ses produits (1 seule requête, quel que soit le nombre de commandes)
+export function withItems<T extends { id: number }>(list: T[]) {
   if (list.length === 0) return [];
 
   const items = db
@@ -128,6 +127,11 @@ export function listOrders(userId: number) {
     ...order,
     items: items.filter((item) => item.orderId === order.id).map(({ name, quantity }) => ({ name, quantity })),
   }));
+}
+
+// Commandes de l'utilisateur avec leurs produits
+export function listOrders(userId: number) {
+  return withItems(db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.id)).all());
 }
 
 function findOrder(userId: number, orderId: number) {

@@ -9,7 +9,7 @@ const params = Astro.url.searchParams;
 const q = params.get('q') ?? undefined;
 const sort = productSorts.find((value) => value === params.get('sort')); // tri inconnu : ignoré
 const promo = params.get('promo') ?? undefined;
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 
 const res = await api.api.products.$get({ query: { q, promo, sort } });
 if (!res.ok) return new Response('Recherche invalide', { status: 400 });

@@ -6,6 +6,7 @@ const { user, cartCount } = Astro.locals;
   <a href="/panier">Panier (<span data-cart-count>{cartCount}</span>)</a>
   {user ? (
     <>
+      {user.role === 'admin' && <a class="admin-link" href="/admin">Admin</a>}
       <a href="/compte/commandes">Mes commandes</a>
       <button class="link" id="logout" type="button">Déconnexion ({user.name})</button>
     </>
@@ -24,4 +25,5 @@ const { user, cartCount } = Astro.locals;
 <style>
   nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
   nav a { color: inherit; }
+  .admin-link { padding: 0.15rem 0.6rem; border-radius: 999px; background: #1d1d1f; color: #fff; text-decoration: none; font-size: 0.875rem; }
 </style>

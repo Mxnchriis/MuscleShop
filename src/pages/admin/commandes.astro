@@ -1,0 +1,85 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { createApi } from '../../lib/api';
+import { formatPrice } from '../../lib/format';
+import { formatDateTime, formatInt, orderStatus } from '../../lib/admin';
+import type { OrderStatus } from '../../types';
+
+const statuses = Object.keys(orderStatus) as OrderStatus[];
+const status = statuses.find((s) => s === Astro.url.searchParams.get('statut'));
+const q = Astro.url.searchParams.get('q')?.trim() || undefined;
+
+const api = createApi(Astro);
+const res = await api.api.admin.orders.$get({ query: { status, q } });
+if (!res.ok) return new Response('Accès refusé', { status: res.status });
+const { items: orders } = await res.json();
+const total = orders.reduce((sum, order) => sum + order.total, 0);
+---
+<AdminLayout title="Commandes" subtitle="Historique de toutes les commandes (200 dernières)">
+  <form class="filters" method="get">
+    <select name="statut" aria-label="Statut">
+      <option value="">Tous les statuts</option>
+      {statuses.map((s) => <option value={s} selected={s === status}>{orderStatus[s].label}</option>)}
+    </select>
+    <input type="search" name="q" value={q} placeholder="N°, email ou nom du client" aria-label="Rechercher" />
+    <button class="btn btn-small" type="submit">Filtrer</button>
+    {(status || q) && <a href="/admin/commandes">Réinitialiser</a>}
+    <span class="hint">{formatInt(orders.length)} commande(s) · {formatPrice(total)}</span>
+  </form>
+
+  <section class="card table-scroll">
+    <table class="data">
+      <thead>
+        <tr><th>N°</th><th>Date</th><th>Client</th><th>Produits</th><th>Statut</th><th class="num">Total</th><th></th></tr>
+      </thead>
+      <tbody>
+        {orders.map((order) => (
+          <tr>
+            <td>{order.id}</td>
+            <td class="muted">{formatDateTime(order.createdAt)}</td>
+            <td>{order.customerName}<br /><span class="muted">{order.customerEmail}</span></td>
+            <td class="products">{order.items.map((item) => <div>x{item.quantity} {item.name}</div>)}</td>
+            <td><span class={orderStatus[order.status].className} data-order-status>{orderStatus[order.status].label}</span></td>
+            <td class="num">{formatPrice(order.total)}</td>
+            <td>
+              {order.status === 'paid' && (
+                <button class="btn btn-secondary btn-small ship" type="button" data-order-id={order.id}>Marquer expédiée</button>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {orders.length === 0 && <p class="hint">Aucune commande ne correspond.</p>}
+  </section>
+</AdminLayout>
+
+<script>
+  import { orderStatus } from '../../lib/admin';
+
+  // Îlot : payée → expédiée, sans recharger la page
+  document.querySelectorAll<HTMLButtonElement>('button.ship').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const res = await fetch(`/api/admin/orders/${button.dataset.orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'shipped' }),
+      });
+      if (!res.ok) {
+        alert((await res.json().catch(() => ({}))).error ?? 'Action impossible');
+        button.disabled = false;
+        return;
+      }
+      const badge = button.closest('tr')!.querySelector<HTMLElement>('[data-order-status]')!;
+      badge.className = orderStatus.shipped.className;
+      badge.textContent = orderStatus.shipped.label;
+      button.remove();
+    });
+  });
+</script>
+
+<style>
+  .products { font-size: 0.85rem; color: var(--ink-2); max-width: 18rem; }
+  .products div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>

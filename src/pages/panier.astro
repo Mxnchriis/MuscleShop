@@ -4,7 +4,7 @@ import CartItem from '../components/cart/CartItem.astro';
 import CartSummary from '../components/cart/CartSummary.astro';
 import { createApi } from '../lib/api';
 
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 const cart = await (await api.api.cart.$get()).json();
 ---
 <ShopLayout title="Panier">

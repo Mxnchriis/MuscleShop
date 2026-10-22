@@ -9,6 +9,7 @@ Boutique de compléments alimentaires sportifs : **Astro** (pages, rendu serveur
 - **Comptes :** session JWT.
 - **Paiement :** Stripe Checkout en mode test.
 - **Mes commandes :** payer, annuler ou recommander une commande.
+- **Espace admin (`/admin`) :** tableau de bord des ventes, stocks modifiables, historique des commandes, et panel de **performance** en direct (répartition Astro / Hono, latences par route, état du serveur, benchmark).
 
 ## Démarrage
 
@@ -34,6 +35,7 @@ Pour générer `JWT_SECRET` : `openssl rand -base64 48`.
 | `npm run db:push` | Applique le schéma à la base |
 | `npm run db:seed` | (Re)charge les données de démo |
 | `npm run db:studio` | Interface web pour parcourir la base |
+| `npm run admin:promote -- <email>` | Donne le rôle admin à un compte existant (`admin:demote` pour le retirer) |
 
 ## Documentation
 

@@ -9,7 +9,7 @@ if (!Astro.locals.user) return Astro.redirect(loginUrl(Astro.url));
 
 // Retour de Stripe : l'API vérifie auprès de Stripe que le paiement est bien passé
 const id = Astro.url.searchParams.get('id') ?? '';
-const api = createApi(Astro.request);
+const api = createApi(Astro);
 const res = await api.api.orders[':id'].$get({ param: { id } });
 if (!res.ok) return Astro.redirect('/compte/commandes');
 const order = await res.json();
