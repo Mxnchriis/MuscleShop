@@ -19,6 +19,12 @@ export const metricsQuery = z.object({
   window: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(5).max(180)).optional(),
 });
 
+// Journée simulée (services/simulation.ts)
+export const simulationBody = z.object({
+  profile: z.enum(['calme', 'normale', 'soldes']),
+  durationMinutes: z.union([z.literal(1), z.literal(2), z.literal(5), z.literal(10)]),
+});
+
 export const benchmarkTargetIds = [
   'api-health',
   'api-products',

@@ -5,9 +5,10 @@ import { recordMetric } from '../services/metrics';
 // En-têtes posés par les appelants pour qualifier la requête
 export const INTERNAL_CALL_HEADER = 'x-internal-call'; // client RPC des pages Astro (app.request)
 export const BENCHMARK_HEADER = 'x-benchmark'; // requêtes du benchmark : non comptées
+export const SIMULATION_HEADER = 'x-simulation'; // visiteurs de la journée simulée : comptés, mais pas journalisés
 
 // Routes du panel de performance lui-même : non comptées (sinon le panel mesure surtout… le panel)
-export const isPerfPanelPath = (path: string) => path.startsWith('/api/admin/metrics') || path.startsWith('/api/admin/benchmark');
+export const isPerfPanelPath = (path: string) => path.startsWith('/api/admin/metrics') || path.startsWith('/api/admin/benchmark') || path.startsWith('/api/admin/simulation');
 
 // Chronomètre chaque requête traitée par Hono (premier middleware de l'app).
 // Ajoute un en-tête Server-Timing, visible dans l'onglet Réseau du navigateur.

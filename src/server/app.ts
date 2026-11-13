@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { errorHandler } from './middlewares/error-handler';
-import { BENCHMARK_HEADER, metrics } from './middlewares/metrics';
+import { BENCHMARK_HEADER, metrics, SIMULATION_HEADER } from './middlewares/metrics';
 import { products } from './routes/products';
 import { categories } from './routes/categories';
 import { cart } from './routes/cart';
@@ -13,9 +13,9 @@ const app = new Hono().basePath('/api');
 
 // metrics en premier : il chronomètre tout le reste (logger, routes, erreurs)
 app.use(metrics);
-// Journal des requêtes, sauf celles du benchmark (des centaines de lignes inutiles)
+// Journal des requêtes, sauf celles du benchmark et de la journée simulée (des milliers de lignes inutiles)
 const log = logger();
-app.use((c, next) => (c.req.header(BENCHMARK_HEADER) ? next() : log(c, next)));
+app.use((c, next) => (c.req.header(BENCHMARK_HEADER) || c.req.header(SIMULATION_HEADER) ? next() : log(c, next)));
 app.onError(errorHandler);
 
 const routes = app

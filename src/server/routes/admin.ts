@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { HTTPException } from 'hono/http-exception';
 import { requireAdmin } from '../middlewares/auth';
-import { adminOrdersQuery, benchmarkBody, metricsQuery, orderStatusBody, stockBody } from '../validators/admin';
+import { adminOrdersQuery, benchmarkBody, metricsQuery, orderStatusBody, simulationBody, stockBody } from '../validators/admin';
+import { getSimulation, startSimulation, stopSimulation } from '../services/simulation';
 import { getDashboard, listAdminOrders, listStock, shipOrder, updateStock } from '../services/admin';
 import { getMetricsReport, resetMetrics } from '../services/metrics';
 import { getSystemReport, resetEventLoopStats } from '../services/system';
@@ -33,6 +34,14 @@ export const admin = new Hono()
     resetEventLoopStats();
     return c.json({ ok: true });
   })
+  // Journée simulée : visiteurs virtuels dans un processus séparé (scripts/simulation.mjs)
+  .get('/simulation', (c) => c.json(getSimulation()))
+  .post('/simulation', zValidator('json', simulationBody), (c) => {
+    const started = startSimulation({ ...c.req.valid('json'), origin: new URL(c.req.url).origin, architecture: 'ssr', version: 'astro-hono' });
+    if (!started) throw new HTTPException(409, { message: 'Une simulation est déjà en cours' });
+    return c.json(started, 202);
+  })
+  .delete('/simulation', (c) => c.json(stopSimulation()))
   .get('/benchmark/targets', (c) => c.json({ items: benchmarkTargets }))
   .post('/benchmark', zValidator('json', benchmarkBody), async (c) => {
     // Import au moment de l'appel : app.ts importe ce fichier, l'inverse créerait une boucle au chargement

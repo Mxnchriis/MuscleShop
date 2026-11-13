@@ -1,6 +1,6 @@
 import { hc } from 'hono/client';
 import app, { type AppType } from '../server/app';
-import { BENCHMARK_HEADER, INTERNAL_CALL_HEADER } from '../server/middlewares/metrics';
+import { BENCHMARK_HEADER, INTERNAL_CALL_HEADER, SIMULATION_HEADER } from '../server/middlewares/metrics';
 
 // Client RPC typé pour les pages Astro (côté serveur uniquement : ce fichier importe l'app Hono).
 // Usage dans une page : const api = createApi(Astro);
@@ -24,5 +24,6 @@ export const createApi = ({ request, locals }: { request: Request; locals: App.L
       cookie: request.headers.get('cookie') ?? '',
       [INTERNAL_CALL_HEADER]: '1',
       ...(request.headers.has(BENCHMARK_HEADER) ? { [BENCHMARK_HEADER]: '1' } : {}),
+      ...(request.headers.has(SIMULATION_HEADER) ? { [SIMULATION_HEADER]: '1' } : {}),
     },
   });

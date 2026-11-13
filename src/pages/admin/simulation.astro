@@ -1,0 +1,15 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+// Accès réservé aux admins : vérifié par le middleware Astro, puis par l'API (requireAdmin).
+// Tout le panneau est construit dans le navigateur par lib/simulation-panel.ts (code commun aux trois versions).
+---
+<AdminLayout title="Simulation" subtitle="Une journée de trafic e-commerce rejouée contre ce serveur, pour comparer les versions">
+  <div data-simulation></div>
+</AdminLayout>
+
+<script>
+  import { initSimulationPanel } from '../../lib/simulation-panel';
+
+  initSimulationPanel(document.querySelector<HTMLElement>('[data-simulation]')!);
+</script>

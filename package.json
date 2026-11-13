@@ -11,6 +11,7 @@
     "check": "astro check",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/server/db/seed.ts",
+    "db:mock": "tsx src/server/db/mock.ts",
     "db:studio": "drizzle-kit studio",
     "admin:promote": "tsx src/server/db/set-role.ts admin",
     "admin:demote": "tsx src/server/db/set-role.ts customer",
